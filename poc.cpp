@@ -43,6 +43,18 @@ public:
   explicit operator bool() { return !feof(m_f); }
 };
 
+static void run(buffer & in, buffer & out) {
+  put("run: ");
+  in.dump();
+  putln();
+}
+
+static void run(buffer & in, file & f) {
+  buffer tmp {};
+  run(in, tmp);
+  // TODO: unget into f
+}
+
 static void parser(buffer & buf, file & f);
 
 static void parse_at(buffer & buf, file & f) {
@@ -57,7 +69,7 @@ static void parse_dpound(buffer & buf, file & f) {
     case '<': {
       buffer b {};
       parser(b, f);
-      if (f) { put('['); b.dump(); putln('!'); }
+      if (f) run(b, buf);
       break;
     }
     default: 
@@ -98,7 +110,7 @@ static void parse_pound(buffer & buf, file & f) {
     case '<': {
       buffer b {};
       parser(b, f);
-      if (f) { put('{'); b.dump(); putln('!'); }
+      if (f) run(b, f);
       break;
     }
     default: 
