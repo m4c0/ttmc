@@ -21,7 +21,6 @@ class buffer {
   }
 
 public:
-  ~buffer() { dump(); }
   void dump() {
     for (auto i = 0; i < m_wpos; i++) put(m_data[i].value);
   }
@@ -44,6 +43,8 @@ public:
   explicit operator bool() { return !feof(m_f); }
 };
 
+static void parser(buffer & buf, file & f);
+
 static void parse_at(buffer & buf, file & f) {
   switch (char c = f.getc()) {
     case -1: break;
@@ -53,9 +54,12 @@ static void parse_at(buffer & buf, file & f) {
 
 static void parse_dpound(buffer & buf, file & f) {
   switch (char c = f.getc()) {
-    case '<': 
-      buf.push_spc('[');
+    case '<': {
+      buffer b {};
+      parser(b, f);
+      if (f) { put('['); b.dump(); putln('!'); }
       break;
+    }
     default: 
       buf.push_char('#');
       buf.push_char('#');
@@ -91,9 +95,12 @@ static void parse_pound(buffer & buf, file & f) {
     case '#':
       parse_dpound(buf, f);
       break;
-    case '<':
-      buf.push_spc('{');
+    case '<': {
+      buffer b {};
+      parser(b, f);
+      if (f) { put('{'); b.dump(); putln('!'); }
       break;
+    }
     default: 
       buf.push_char('#');
       buf.push_char(c);
@@ -101,14 +108,7 @@ static void parse_pound(buffer & buf, file & f) {
   }
 };
 
-int main() {
-  buffer buf {};
-  file f {};
-
-  const auto parse_call = [&] {
-    buf.push_spc('!');
-  };
-
+static void parser(buffer & buf, file & f) {
   while (f) {
     switch (char c = f.getc()) {
       case -1:  break;
@@ -116,8 +116,14 @@ int main() {
       case '#': parse_pound(buf, f); break;
       case '<': parse_lt(buf, f); break;
       case ';': buf.push_spc('^'); break;
-      case '>': parse_call(); break;
+      case '>': return;
       default:  buf.push_char(c); break;
     }
   }
+}
+
+int main() {
+  buffer buf {};
+  file f {};
+  parser(buf, f);
 }
