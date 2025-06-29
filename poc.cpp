@@ -21,7 +21,8 @@ class buffer {
   }
 
 public:
-  ~buffer() {
+  ~buffer() { dump(); }
+  void dump() {
     for (auto i = 0; i < m_wpos; i++) put(m_data[i].value);
   }
 
@@ -43,61 +44,79 @@ public:
   explicit operator bool() { return !feof(m_f); }
 };
 
+static void parse_at(buffer & buf, file & f) {
+  switch (char c = f.getc()) {
+    case -1: break;
+    default: buf.push_char(c); break;
+  }
+}
+
+static void parse_dpound(buffer & buf, file & f) {
+  switch (char c = f.getc()) {
+    case '<': 
+      buf.push_spc('[');
+      break;
+    default: 
+      buf.push_char('#');
+      buf.push_char('#');
+      buf.push_char(c);
+      break;
+  }
+}
+
+static void parse_lt(buffer & buf, file & f) {
+  while (f) {
+    switch (char c = f.getc()) {
+      case -1:
+        break;
+      case '@':
+        parse_at(buf, f);
+        break;
+      case '>':
+        return;
+      case '<': 
+        buf.push_char(c);
+        parse_lt(buf, f);
+        if (f) buf.push_char('>');
+        break;
+      default:
+        buf.push_char(c);
+        break;
+    }
+  }
+}
+
+static void parse_pound(buffer & buf, file & f) {
+  switch (char c = f.getc()) {
+    case '#':
+      parse_dpound(buf, f);
+      break;
+    case '<':
+      buf.push_spc('{');
+      break;
+    default: 
+      buf.push_char('#');
+      buf.push_char(c);
+      break;
+  }
+};
+
 int main() {
   buffer buf {};
   file f {};
 
-  const auto parse_at = [&] {
-    switch (char c = f.getc()) {
-      case -1: break;
-      default: buf.push_char(c); break;
-    }
-  };
-  const auto parse_dpound = [&] {
-    switch (char c = f.getc()) {
-      case '<': 
-        buf.push_spc('[');
-        break;
-      default: 
-        buf.push_char('#');
-        buf.push_char('#');
-        buf.push_char(c);
-        break;
-    }
-  };
-  const auto parse_pound = [&] {
-    switch (char c = f.getc()) {
-      case '#': parse_dpound(); break;
-      case '<': buf.push_spc('{'); break;
-      default: 
-        buf.push_char('#');
-        buf.push_char(c);
-        break;
-    }
-  };
-  const auto parse_lt = [&](auto & parse_lt) {
-    while (f) {
-      switch (char c = f.getc()) {
-        case -1: die("EOF on a open '<'"); break;
-        case '@': parse_at(); break;
-        case '>': return;
-        case '<':
-          buf.push_char(c);
-          parse_lt(parse_lt);
-          buf.push_char('>');
-          break;
-        default: buf.push_char(c); break;
-      }
-    }
+  const auto parse_call = [&] {
+    buf.push_spc('!');
   };
 
   while (f) {
     switch (char c = f.getc()) {
       case -1:  break;
-      case '@': parse_at(); break;
-      case '#': parse_pound(); break;
-      case '<': parse_lt(parse_lt); break;
+      case '@': parse_at(buf, f); break;
+      case '#': parse_pound(buf, f); break;
+      case '<': parse_lt(buf, f); break;
       case ';': buf.push_spc('^'); break;
+      case '>': parse_call(); break;
       default:  buf.push_char(c); break;
     }
   }
