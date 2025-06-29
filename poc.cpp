@@ -2,31 +2,40 @@
 #include <stdio.h>
 
 import hay;
+import hai;
+import jute;
 import print;
 
-struct glyph {
-  char value;
-  bool special;
+struct pair {
+  unsigned start;
+  unsigned end;
 };
 
 class buffer {
-  static constexpr const auto max_glyphs = 1024;
-
-  glyph m_data[max_glyphs] {};
-  int m_wpos = 0;
-
-  void push(glyph g) {
-    if (m_wpos == max_glyphs) die("buffer overflow while processing pending strings");
-    m_data[m_wpos++] = g;
-  }
+  hai::varray<pair> m_specs { 64 };
+  hai::varray<char> m_data { 128 };
 
 public:
-  void dump() {
-    for (auto i = 0; i < m_wpos; i++) put(m_data[i].value);
+  auto str(int idx) const {
+    if (idx >= m_specs.size()) return jute::view {};
+
+    auto [s, e] = m_specs[idx];
+    return jute::view { m_data.begin() + s, e - s };
   }
 
-  void push_char(char c) { push({ c }); }
-  void push_spc(char c) { push({ c, true }); }
+  auto arity() const { return m_specs.size() - 1; }
+
+  void push_char(char c) {
+    m_data.push_back_doubling(c);
+  }
+
+  void push_spc() {
+    pair p {};
+    if (m_specs.size() > 0) p.start = (m_specs.end() - 1)->end;
+    p.end = m_data.size();
+
+    m_specs.push_back_doubling(p);
+  }
 };
 
 class file {
@@ -44,14 +53,33 @@ public:
 };
 
 static void run(buffer & in, buffer & out) {
-  put("run: ");
-  in.dump();
-  putln();
+  in.push_spc();
+
+  auto fn = in.str(0);
+  if (fn == "ds") {
+    auto key = in.str(1);
+    auto val = in.str(2);
+    putln("ds ", key, "=", val);
+  } else if (fn == "ss") {
+    auto key = in.str(1);
+    put("ss ", key);
+    for (auto i = 1; i < in.arity(); i++) {
+      put(" ", in.str(i + 1));
+    }
+    putln();
+  } else {
+    put("other fn:", in.str(0));
+    for (auto i = 0; i < in.arity(); i++) {
+      put(" !", in.str(i + 1));
+    }
+    putln();
+  }
 }
 
 static void run(buffer & in, file & f) {
   buffer tmp {};
   run(in, tmp);
+  putln("run that");
   // TODO: unget into f
 }
 
@@ -127,7 +155,7 @@ static void parser(buffer & buf, file & f) {
       case '@': parse_at(buf, f); break;
       case '#': parse_pound(buf, f); break;
       case '<': parse_lt(buf, f); break;
-      case ';': buf.push_spc('^'); break;
+      case ';': buf.push_spc(); break;
       case '>': return;
       default:  buf.push_char(c); break;
     }
