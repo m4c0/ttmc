@@ -1,8 +1,9 @@
 #pragma leco tool
 #include <stdio.h>
 
-import hay;
 import hai;
+import hashley;
+import hay;
 import jute;
 import print;
 
@@ -52,6 +53,8 @@ public:
   explicit operator bool() { return !feof(m_f); }
 };
 
+static hashley::fin<hai::cstr> g_mem { 127 }; 
+
 static void run(buffer & in, buffer & out) {
   in.push_spc();
 
@@ -59,16 +62,17 @@ static void run(buffer & in, buffer & out) {
   if (fn == "ds") {
     auto key = in.str(1);
     auto val = in.str(2);
-    putln("ds ", key, "=", val);
+    g_mem[key] = val.cstr();
   } else if (fn == "ss") {
     auto key = in.str(1);
-    put("ss ", key);
+    auto & val = g_mem[key];
+    put("ss ", val);
     for (auto i = 1; i < in.arity(); i++) {
       put(" ", in.str(i + 1));
     }
     putln();
   } else {
-    put("other fn:", in.str(0));
+    put("fn: ", g_mem[in.str(0)]);
     for (auto i = 0; i < in.arity(); i++) {
       put(" !", in.str(i + 1));
     }
