@@ -71,6 +71,7 @@ static void ss(scanner & f, jute::view key) {
 
       arg = f.arg_after(arg);
       i++;
+      if (i == 7) die("too many arguments to ss of ", key);
     }
 
     if (i != -1) {
