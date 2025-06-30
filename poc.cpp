@@ -20,7 +20,9 @@ public:
 
   explicit operator bool() const { return m_rpos < m_data.size(); }
 
-  auto view() const { return jute::view::unsafe(m_data.data()); }
+  auto view() const {
+    return m_data.data() ? jute::view::unsafe(m_data.data()) : jute::view {};
+  }
   auto r_view() const { return jute::view::unsafe(m_data.data() + m_rpos); }
   auto w_ptr() const { return m_data.data() + m_wpos; }
 
@@ -117,7 +119,6 @@ static void run(scanner & f, const char * mark) {
     auto key = f.arg_after(fn);
     ss(f, key);
   } else if (fn.size()) {
-    putln("here", fn);
     call(f, fn);
   } else {
     die("trying to call an empty function");
