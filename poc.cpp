@@ -6,6 +6,8 @@ import jojo;
 import jute;
 import print;
 
+static constexpr const auto max_args = 7;
+
 class scanner {
   hai::cstr m_data {};
   unsigned m_rpos = 0;
@@ -71,7 +73,7 @@ static void ss(scanner & f, jute::view key) {
 
       arg = f.arg_after(arg);
       i++;
-      if (i == 7) die("too many arguments to ss of ", key);
+      if (i == max_args) die("too many arguments to ss of ", key);
     }
 
     if (i != -1) {
@@ -84,6 +86,27 @@ static void ss(scanner & f, jute::view key) {
   val = scanner { val.view().cstr() };
 }
 
+static void call(scanner & f, jute::view fn) {
+  jute::view args[max_args];
+
+  unsigned i = 1;
+  auto arg = f.arg_after(fn);
+  while (arg.begin()) {
+    args[i] = arg;
+    arg = f.arg_after(arg);
+  }
+
+  // TODO: pass result back to scanner
+  for (auto c : g_mem[fn].view()) {
+    if (c && c < max_args) {
+      put(args[static_cast<int>(c)]);
+    } else {
+      put(c);
+    }
+  }
+  putln();
+}
+
 static void run(scanner & f, const char * mark) {
   auto fn = jute::view::unsafe(mark);
   if (fn == "ds") {
@@ -93,15 +116,11 @@ static void run(scanner & f, const char * mark) {
   } else if (fn == "ss") {
     auto key = f.arg_after(fn);
     ss(f, key);
+  } else if (fn.size()) {
+    putln("here", fn);
+    call(f, fn);
   } else {
-    putln("fn: ", g_mem[fn].view());
-
-    auto arg = f.arg_after(fn);
-    while (arg.begin()) {
-      putln("- ", arg);
-      arg = f.arg_after(arg);
-    }
-    putln();
+    die("trying to call an empty function");
   }
 }
 
