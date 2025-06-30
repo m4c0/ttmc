@@ -4,6 +4,7 @@
 import hai;
 import hashley;
 import hay;
+import jojo;
 import jute;
 import print;
 
@@ -39,18 +40,21 @@ public:
   }
 };
 
-class file {
-  hay<FILE *, fopen, fclose> m_f { "example.ttm", "rb" };
+class scanner {
+  hai::cstr m_data;
+  unsigned m_rpos = 0;
 
 public:
-  int getc() {
-    auto res = fgetc(m_f);
-    if (res != EOF) return res;
-    if (feof(m_f)) return -1;
-    die("error reading file: ", ferror(m_f));
+  explicit scanner(hai::cstr data) : m_data { traits::move(data) } {}
+
+  char getc() {
+    // Assuming text files, so all bytes below 32 (except TAB, CR, LF)
+    // are ours to take.
+    if (m_rpos == m_data.size()) return 0;
+    return m_data.data()[m_rpos++];
   }
 
-  explicit operator bool() { return !feof(m_f); }
+  explicit operator bool() const { return m_rpos < m_data.size(); }
 };
 
 static hashley::fin<hai::cstr> g_mem { 127 }; 
@@ -80,23 +84,23 @@ static void run(buffer & in, buffer & out) {
   }
 }
 
-static void run(buffer & in, file & f) {
+static void run(buffer & in, scanner & f) {
   buffer tmp {};
   run(in, tmp);
   putln("run that");
   // TODO: unget into f
 }
 
-static void parser(buffer & buf, file & f);
+static void parser(buffer & buf, scanner & f);
 
-static void parse_at(buffer & buf, file & f) {
+static void parse_at(buffer & buf, scanner & f) {
   switch (char c = f.getc()) {
     case -1: break;
     default: buf.push_char(c); break;
   }
 }
 
-static void parse_dpound(buffer & buf, file & f) {
+static void parse_dpound(buffer & buf, scanner & f) {
   switch (char c = f.getc()) {
     case '<': {
       buffer b {};
@@ -112,7 +116,7 @@ static void parse_dpound(buffer & buf, file & f) {
   }
 }
 
-static void parse_lt(buffer & buf, file & f) {
+static void parse_lt(buffer & buf, scanner & f) {
   while (f) {
     switch (char c = f.getc()) {
       case -1:
@@ -134,7 +138,7 @@ static void parse_lt(buffer & buf, file & f) {
   }
 }
 
-static void parse_pound(buffer & buf, file & f) {
+static void parse_pound(buffer & buf, scanner & f) {
   switch (char c = f.getc()) {
     case '#':
       parse_dpound(buf, f);
@@ -152,7 +156,7 @@ static void parse_pound(buffer & buf, file & f) {
   }
 };
 
-static void parser(buffer & buf, file & f) {
+static void parser(buffer & buf, scanner & f) {
   while (f) {
     switch (char c = f.getc()) {
       case -1:  break;
@@ -167,7 +171,7 @@ static void parser(buffer & buf, file & f) {
 }
 
 int main() {
+  scanner s { jojo::read_cstr("example.ttm") };
   buffer buf {};
-  file f {};
-  parser(buf, f);
+  parser(buf, s);
 }
