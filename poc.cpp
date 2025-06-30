@@ -8,211 +8,210 @@ import print;
 
 static constexpr const auto max_args = 7;
 
-class scanner {
-  hai::cstr m_data {};
-  unsigned m_rpos = 0;
-  unsigned m_wpos = 0;
+namespace input_roll {
+  struct node {
+    hai::cstr data {};
+    unsigned rpos = 0;
+    hai::uptr<node> next {};
+  };
 
-public:
-  constexpr scanner() = default;
+  static hai::uptr<node> g_head {};
 
-  explicit scanner(hai::cstr data) : m_data { traits::move(data) } {}
-
-  explicit operator bool() const { return m_rpos < m_data.size(); }
-
-  auto view() const {
-    return m_data.data() ? jute::view::unsafe(m_data.data()) : jute::view {};
+  void push(hai::cstr d) {
+    g_head.reset(new node {
+      .data = traits::move(d),
+      .next = traits::move(g_head),
+    });
   }
-  auto r_view() const { return jute::view::unsafe(m_data.data() + m_rpos); }
-  auto w_ptr() const { return m_data.data() + m_wpos; }
 
   char getc() {
-    // Assuming text files, so all bytes below 32 (except TAB, CR, LF)
-    // are ours to take.
-    if (m_rpos == m_data.size()) return 0;
-    return m_data.data()[m_rpos++];
-  }
+    if (!g_head) return 0;
 
-  void skip(unsigned n = 1) {
-    for (auto i = 0; i < n; i++) {
-      if (m_wpos >= m_rpos) die("scanner underflow");
-      if (m_wpos >= m_data.size()) die("scanner overflow");
-      m_data.data()[m_wpos++] = m_data.data()[m_rpos - n + i];
-    }
-  }
-  void spc(char c = 0) {
-    if (m_wpos >= m_data.size()) die("scanner overflow");
-    m_data.data()[m_wpos++] = c;
-  }
+    auto c = g_head->data.begin()[g_head->rpos++];
 
-  jute::view arg_after(jute::view arg) {
-    if (arg.begin() == 0) return arg;
-
-    auto a = arg.end() + 1;
-    if (a >= m_data.end()) return {};
-    if (a >= m_data.begin() + m_wpos) return {};
-
-    return jute::view::unsafe(a);
-  }
-};
-
-static hashley::fin<scanner> g_mem { 127 }; 
-
-static void ss(scanner & f, jute::view key) {
-  auto & val = g_mem[key];
-
-  while (val) {
-    auto arg = f.arg_after(key);
-    char i = 1;
-    while (arg.begin()) {
-      auto v = val.r_view().subview(arg.size()).before;
-      if (v == arg) {
-        for (auto i = 0; i < v.size(); i++) val.getc();
-        val.spc(i);
-        i = -1;
-        break;
-      }
-
-      arg = f.arg_after(arg);
-      i++;
-      if (i == max_args) die("too many arguments to ss of ", key);
+    if (g_head->rpos >= g_head->data.size()) {
+      g_head = traits::move(g_head->next);
     }
 
-    if (i != -1) {
-      val.getc();
-      val.skip();
-    }
+    return c;
   }
 
-  val.spc();
-  val = scanner { val.view().cstr() };
+  bool empty() { return !g_head; }
 }
 
-static void call(scanner & f, jute::view fn, bool left) {
+namespace param_roll {
+  hai::varray<char> g_data { 10240 };
+
+  void push(char c) {
+    g_data.push_back_doubling(c);
+  }
+
+  auto at(unsigned m) { return g_data.begin() + m; }
+  auto end() { return g_data.end(); }
+
+  auto mark() { return g_data.size(); }
+}
+
+namespace storage_roll {
+  hai::chain<char> g_data { 10240 };
+
+  void push(char c) {
+    g_data.push_back(c);
+  }
+}
+
+static jute::view after(jute::view v) {
+  auto e = v.end() + 1;
+  if (e > param_roll::end()) return {};
+  if (!*e) return {};
+  return jute::view::unsafe(e);
+}
+
+static hashley::fin<hai::varray<char>> g_mem { 127 }; 
+
+static void ss(jute::view key) {
+  auto & val = g_mem[key];
+  auto j = 0;
+  for (auto i = 0; val[i]; i++, j++) {
+    auto arg = after(key);
+    char idx = 1;
+    while (arg.data()) {
+      auto v = jute::view::unsafe(val.begin() + i).subview(arg.size()).before;
+      if (v != arg) {
+        arg = after(arg);
+        idx++;
+        if (idx == max_args) die("too many arguments to ss of ", key);
+      } else {
+        val[j] = idx;
+        i += arg.size() - 1;
+        idx = -1;
+      }
+    }
+  }
+  val[j] = 0;
+}
+
+static void call(jute::view fn, bool left) {
   jute::view args[max_args];
 
   unsigned i = 1;
-  auto arg = f.arg_after(fn);
+  auto arg = after(fn);
   while (arg.begin()) {
     args[i++] = arg;
-    arg = f.arg_after(arg);
+    arg = after(arg);
   }
 
-  auto view = g_mem[fn].view();
-  hai::varray<char> buf { static_cast<unsigned>(view.size()) };
-
-  // TODO: pass result back to scanner
-  for (auto c : view) {
+  auto & data = g_mem[fn];
+  for (auto c : data) {
     if (c && c < max_args) {
-      for (auto cc : args[static_cast<int>(c)]) buf.push_back_doubling(cc);
+      for (auto cc : args[static_cast<int>(c)]) param_roll::push(cc);
     } else {
-      buf.push_back_doubling(c);
+      param_roll::push(c);
     }
   }
-  buf.push_back_doubling(0);
-  
-  if (left) {
-    putln("this is lefty: ", buf.begin());
-    return;
-  }
-  putln("right: ", buf.begin());
 }
 
-static void run(scanner & f, const char * mark, bool left) {
-  auto fn = jute::view::unsafe(mark);
+static void run(unsigned mark, bool left) {
+  auto fn = jute::view::unsafe(param_roll::at(mark));
   if (fn == "ds") {
-    auto key = f.arg_after(fn);
-    auto val = f.arg_after(key);
-    g_mem[key] = scanner { val.cstr() };
+    auto key = after(fn);
+    auto val = after(key);
+    hai::varray<char> mem { static_cast<unsigned>(val.size()) + 1 };
+    for (auto i = 0; i < val.size(); i++) mem.push_back(val[i]);
+    mem.push_back(0);
+    g_mem[key] = traits::move(mem);
   } else if (fn == "ss") {
-    auto key = f.arg_after(fn);
-    ss(f, key);
+    auto key = after(fn);
+    ss(key);
   } else if (fn.size()) {
-    call(f, fn, left);
+    call(fn, left);
   } else {
     die("trying to call an empty function");
   }
 }
 
-static void parser(scanner & f);
+static void parser();
 
-static void parse_at(scanner & f) {
-  switch (f.getc()) {
+static void parse_at() {
+  switch (char c = input_roll::getc()) {
     case 0: break;
-    default: f.skip(); break;
+    default: param_roll::push(c); break;
   }
 }
 
-static void parse_dpound(scanner & f) {
-  switch (f.getc()) {
+static void parse_dpound() {
+  switch (char c = input_roll::getc()) {
     case '<': {
-      auto mark = f.w_ptr();
-      parser(f);
-      if (f) run(f, mark, true);
+      auto mark = param_roll::mark();
+      parser();
+      if (!input_roll::empty()) run(mark, true);
       break;
     }
     default: 
-      f.skip(3);
+      param_roll::push('#');
+      param_roll::push('#');
+      param_roll::push(c);
       break;
   }
 }
 
-static void parse_lt(scanner & f) {
-  while (f) {
-    switch (f.getc()) {
+static void parse_lt() {
+  while (!input_roll::empty()) {
+    switch (auto c = input_roll::getc()) {
       case 0:
         break;
       case '@':
-        parse_at(f);
+        parse_at();
         break;
       case '>':
         return;
       case '<': 
-        f.skip();
-        parse_lt(f);
-        if (f) f.skip();
+        param_roll::push('<');
+        parse_lt();
+        if (!input_roll::empty()) param_roll::push('>');
         break;
       default:
-        f.skip();
+        param_roll::push(c);
         break;
     }
   }
 }
 
-static void parse_pound(scanner & f) {
-  switch (f.getc()) {
+static void parse_pound() {
+  switch (auto c = input_roll::getc()) {
     case '#':
-      parse_dpound(f);
+      parse_dpound();
       break;
     case '<': {
-      auto mark = f.w_ptr();
-      parser(f);
-      if (f) run(f, mark, false);
+      auto mark = param_roll::mark();
+      parser();
+      if (!input_roll::empty()) run(mark, false);
       break;
     }
     default: 
-      f.skip(2);
+      param_roll::push('#');
+      param_roll::push(c);
       break;
   }
 };
 
-static void parser(scanner & f) {
-  while (f) {
-    switch (f.getc()) {
+static void parser() {
+  while (!input_roll::empty()) {
+    switch (auto c = input_roll::getc()) {
       case 0:  break;
-      case '@': parse_at(f); break;
-      case '#': parse_pound(f); break;
-      case '<': parse_lt(f); break;
-      case ';': f.spc(); break;
-      case '>': f.spc(); return;
-      default:  f.skip(); break;
+      case '@': parse_at(); break;
+      case '#': parse_pound(); break;
+      case '<': parse_lt(); break;
+      case ';': param_roll::push(0); break;
+      case '>': param_roll::push(0); return;
+      default:  param_roll::push(c); break;
     }
   }
 }
 
 int main() try {
-  scanner s { jojo::read_cstr("example.ttm") };
-  parser(s);
+  input_roll::push(jojo::read_cstr("example.ttm"));
+  parser();
 } catch (...) {
   return 1;
 }
