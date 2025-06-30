@@ -1,44 +1,10 @@
 #pragma leco tool
-#include <stdio.h>
 
 import hai;
 import hashley;
-import hay;
 import jojo;
 import jute;
 import print;
-
-struct pair {
-  unsigned start;
-  unsigned end;
-};
-
-class buffer {
-  hai::varray<pair> m_specs { 64 };
-  hai::varray<char> m_data { 128 };
-
-public:
-  auto str(int idx) const {
-    if (idx >= m_specs.size()) return jute::view {};
-
-    auto [s, e] = m_specs[idx];
-    return jute::view { m_data.begin() + s, e - s };
-  }
-
-  auto arity() const { return m_specs.size() - 1; }
-
-  void push_char(char c) {
-    m_data.push_back_doubling(c);
-  }
-
-  void push_spc() {
-    pair p {};
-    if (m_specs.size() > 0) p.start = (m_specs.end() - 1)->end;
-    p.end = m_data.size();
-
-    m_specs.push_back_doubling(p);
-  }
-};
 
 class scanner {
   hai::cstr m_data;
@@ -49,6 +15,8 @@ public:
   explicit scanner(hai::cstr data) : m_data { traits::move(data) } {}
 
   explicit operator bool() const { return m_rpos < m_data.size(); }
+
+  auto marker() const { return m_data.data() + m_wpos; }
 
   char getc() {
     // Assuming text files, so all bytes below 32 (except TAB, CR, LF)
@@ -66,47 +34,51 @@ public:
   }
   void spc() {
     if (m_wpos >= m_data.size()) die("scanner overflow");
-    m_data.data()[m_wpos++] = '!';
+    m_data.data()[m_wpos++] = 0;
   }
 
-  void dump() {
-    m_data.data()[m_wpos++] = 0;
-    putln(m_data);
+  jute::view arg_after(jute::view arg) {
+    if (arg.begin() == 0) return arg;
+
+    auto a = arg.end() + 1;
+    if (a >= m_data.end()) return {};
+    if (a >= m_data.begin() + m_wpos) return {};
+
+    return jute::view::unsafe(a);
   }
 };
 
 static hashley::fin<hai::cstr> g_mem { 127 }; 
 
-static void run(buffer & in, buffer & out) {
-  in.push_spc();
-
-  auto fn = in.str(0);
+static void run(scanner & f, const char * mark) {
+  auto fn = jute::view::unsafe(mark);
   if (fn == "ds") {
-    auto key = in.str(1);
-    auto val = in.str(2);
+    auto key = f.arg_after(fn);
+    auto val = f.arg_after(key);
+    putln("ds ", key, " = ", val);
+    putln();
     g_mem[key] = val.cstr();
   } else if (fn == "ss") {
-    auto key = in.str(1);
+    auto key = f.arg_after(fn);
     auto & val = g_mem[key];
-    put("ss ", val);
-    for (auto i = 1; i < in.arity(); i++) {
-      put(" ", in.str(i + 1));
+    putln("ss ", val);
+
+    auto arg = f.arg_after(key);
+    while (arg.begin()) {
+      putln("- ", arg);
+      arg = f.arg_after(arg);
     }
     putln();
   } else {
-    put("fn: ", g_mem[in.str(0)]);
-    for (auto i = 0; i < in.arity(); i++) {
-      put(" !", in.str(i + 1));
+    putln("fn: ", g_mem[fn]);
+
+    auto arg = f.arg_after(fn);
+    while (arg.begin()) {
+      putln("- ", arg);
+      arg = f.arg_after(arg);
     }
     putln();
   }
-}
-
-static void run(buffer & in, scanner & f) {
-  buffer tmp {};
-  run(in, tmp);
-  putln("run that");
-  // TODO: unget into f
 }
 
 static void parser(scanner & f);
@@ -121,8 +93,9 @@ static void parse_at(scanner & f) {
 static void parse_dpound(scanner & f) {
   switch (f.getc()) {
     case '<': {
+      auto mark = f.marker();
       parser(f);
-      //if (f) run(b, buf);
+      if (f) run(f, mark);
       break;
     }
     default: 
@@ -159,8 +132,9 @@ static void parse_pound(scanner & f) {
       parse_dpound(f);
       break;
     case '<': {
+      auto mark = f.marker();
       parser(f);
-      //if (f) run(b, f);
+      if (f) run(f, mark);
       break;
     }
     default: 
@@ -186,5 +160,4 @@ static void parser(scanner & f) {
 int main() {
   scanner s { jojo::read_cstr("example.ttm") };
   parser(s);
-  s.dump();
 }
