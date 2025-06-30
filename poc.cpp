@@ -94,7 +94,7 @@ static void call(scanner & f, jute::view fn) {
   unsigned i = 1;
   auto arg = f.arg_after(fn);
   while (arg.begin()) {
-    args[i] = arg;
+    args[i++] = arg;
     arg = f.arg_after(arg);
   }
 
