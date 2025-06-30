@@ -36,9 +36,9 @@ public:
       m_data.data()[m_wpos++] = m_data.data()[m_rpos - n + i];
     }
   }
-  void spc() {
+  void spc(char c = 0) {
     if (m_wpos >= m_data.size()) die("scanner overflow");
-    m_data.data()[m_wpos++] = 0;
+    m_data.data()[m_wpos++] = c;
   }
 
   jute::view arg_after(jute::view arg) {
@@ -59,17 +59,27 @@ static void ss(scanner & f, jute::view key) {
 
   while (val) {
     auto arg = f.arg_after(key);
+    char i = 1;
     while (arg.begin()) {
       auto v = val.r_view().subview(arg.size()).before;
-      if (v == arg) putln(v);
+      if (v == arg) {
+        for (auto i = 0; i < v.size(); i++) val.getc();
+        val.spc(i);
+        i = -1;
+        break;
+      }
 
       arg = f.arg_after(arg);
+      i++;
     }
 
-    val.getc();
+    if (i != -1) {
+      val.getc();
+      val.skip();
+    }
   }
 
-  if (val) val.spc();
+  val.spc();
   val = scanner { val.view().cstr() };
 }
 
@@ -170,7 +180,9 @@ static void parser(scanner & f) {
   }
 }
 
-int main() {
+int main() try {
   scanner s { jojo::read_cstr("example.ttm") };
   parser(s);
+} catch (...) {
+  return 1;
 }
