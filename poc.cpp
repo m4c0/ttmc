@@ -88,7 +88,7 @@ static void ss(scanner & f, jute::view key) {
   val = scanner { val.view().cstr() };
 }
 
-static void call(scanner & f, jute::view fn) {
+static void call(scanner & f, jute::view fn, bool left) {
   jute::view args[max_args];
 
   unsigned i = 1;
@@ -98,18 +98,27 @@ static void call(scanner & f, jute::view fn) {
     arg = f.arg_after(arg);
   }
 
+  auto view = g_mem[fn].view();
+  hai::varray<char> buf { static_cast<unsigned>(view.size()) };
+
   // TODO: pass result back to scanner
-  for (auto c : g_mem[fn].view()) {
+  for (auto c : view) {
     if (c && c < max_args) {
-      put(args[static_cast<int>(c)]);
+      for (auto cc : args[static_cast<int>(c)]) buf.push_back_doubling(cc);
     } else {
-      put(c);
+      buf.push_back_doubling(c);
     }
   }
-  putln();
+  buf.push_back_doubling(0);
+  
+  if (left) {
+    putln("this is lefty: ", buf.begin());
+    return;
+  }
+  putln("right: ", buf.begin());
 }
 
-static void run(scanner & f, const char * mark) {
+static void run(scanner & f, const char * mark, bool left) {
   auto fn = jute::view::unsafe(mark);
   if (fn == "ds") {
     auto key = f.arg_after(fn);
@@ -119,7 +128,7 @@ static void run(scanner & f, const char * mark) {
     auto key = f.arg_after(fn);
     ss(f, key);
   } else if (fn.size()) {
-    call(f, fn);
+    call(f, fn, left);
   } else {
     die("trying to call an empty function");
   }
@@ -139,7 +148,7 @@ static void parse_dpound(scanner & f) {
     case '<': {
       auto mark = f.w_ptr();
       parser(f);
-      if (f) run(f, mark);
+      if (f) run(f, mark, true);
       break;
     }
     default: 
@@ -178,7 +187,7 @@ static void parse_pound(scanner & f) {
     case '<': {
       auto mark = f.w_ptr();
       parser(f);
-      if (f) run(f, mark);
+      if (f) run(f, mark, false);
       break;
     }
     default: 
