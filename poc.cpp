@@ -43,9 +43,12 @@ public:
 class scanner {
   hai::cstr m_data;
   unsigned m_rpos = 0;
+  unsigned m_wpos = 0;
 
 public:
   explicit scanner(hai::cstr data) : m_data { traits::move(data) } {}
+
+  explicit operator bool() const { return m_rpos < m_data.size(); }
 
   char getc() {
     // Assuming text files, so all bytes below 32 (except TAB, CR, LF)
@@ -54,7 +57,22 @@ public:
     return m_data.data()[m_rpos++];
   }
 
-  explicit operator bool() const { return m_rpos < m_data.size(); }
+  void skip(unsigned n = 1) {
+    for (auto i = 0; i < n; i++) {
+      if (m_wpos >= m_rpos) die("scanner underflow");
+      if (m_wpos >= m_data.size()) die("scanner overflow");
+      m_data.data()[m_wpos++] = m_data.data()[m_rpos - n + i];
+    }
+  }
+  void spc() {
+    if (m_wpos >= m_data.size()) die("scanner overflow");
+    m_data.data()[m_wpos++] = '!';
+  }
+
+  void dump() {
+    m_data.data()[m_wpos++] = 0;
+    putln(m_data);
+  }
 };
 
 static hashley::fin<hai::cstr> g_mem { 127 }; 
@@ -91,87 +109,82 @@ static void run(buffer & in, scanner & f) {
   // TODO: unget into f
 }
 
-static void parser(buffer & buf, scanner & f);
+static void parser(scanner & f);
 
-static void parse_at(buffer & buf, scanner & f) {
-  switch (char c = f.getc()) {
-    case -1: break;
-    default: buf.push_char(c); break;
+static void parse_at(scanner & f) {
+  switch (f.getc()) {
+    case 0: break;
+    default: f.skip(); break;
   }
 }
 
-static void parse_dpound(buffer & buf, scanner & f) {
-  switch (char c = f.getc()) {
+static void parse_dpound(scanner & f) {
+  switch (f.getc()) {
     case '<': {
-      buffer b {};
-      parser(b, f);
-      if (f) run(b, buf);
+      parser(f);
+      //if (f) run(b, buf);
       break;
     }
     default: 
-      buf.push_char('#');
-      buf.push_char('#');
-      buf.push_char(c);
+      f.skip(3);
       break;
   }
 }
 
-static void parse_lt(buffer & buf, scanner & f) {
+static void parse_lt(scanner & f) {
   while (f) {
-    switch (char c = f.getc()) {
-      case -1:
+    switch (f.getc()) {
+      case 0:
         break;
       case '@':
-        parse_at(buf, f);
+        parse_at(f);
         break;
       case '>':
         return;
       case '<': 
-        buf.push_char(c);
-        parse_lt(buf, f);
-        if (f) buf.push_char('>');
+        f.skip();
+        parse_lt(f);
+        if (f) f.skip();
         break;
       default:
-        buf.push_char(c);
+        f.skip();
         break;
     }
   }
 }
 
-static void parse_pound(buffer & buf, scanner & f) {
-  switch (char c = f.getc()) {
+static void parse_pound(scanner & f) {
+  switch (f.getc()) {
     case '#':
-      parse_dpound(buf, f);
+      parse_dpound(f);
       break;
     case '<': {
-      buffer b {};
-      parser(b, f);
-      if (f) run(b, f);
+      parser(f);
+      //if (f) run(b, f);
       break;
     }
     default: 
-      buf.push_char('#');
-      buf.push_char(c);
+      f.skip(2);
       break;
   }
 };
 
-static void parser(buffer & buf, scanner & f) {
+static void parser(scanner & f) {
   while (f) {
-    switch (char c = f.getc()) {
-      case -1:  break;
-      case '@': parse_at(buf, f); break;
-      case '#': parse_pound(buf, f); break;
-      case '<': parse_lt(buf, f); break;
-      case ';': buf.push_spc(); break;
-      case '>': return;
-      default:  buf.push_char(c); break;
+    switch (f.getc()) {
+      case 0:  break;
+      case '@': parse_at(f); break;
+      case '#': parse_pound(f); break;
+      case '<': parse_lt(f); break;
+      case ';': f.spc(); break;
+      case '>': f.spc(); return;
+      default:  f.skip(); break;
     }
   }
 }
 
 int main() {
   scanner s { jojo::read_cstr("example.ttm") };
-  buffer buf {};
-  parser(buf, s);
+  parser(s);
+  s.dump();
 }
