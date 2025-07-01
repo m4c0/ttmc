@@ -79,12 +79,21 @@ static jute::view after(jute::view v) {
 
 static hashley::fin<hai::varray<char>> g_mem { 127 }; 
 
+static void ds(jute::view key) {
+  auto val = after(key);
+  hai::varray<char> mem { static_cast<unsigned>(val.size()) + 1 };
+  for (auto i = 0; i < val.size(); i++) mem.push_back(val[i]);
+  mem.push_back(0);
+  g_mem[key] = traits::move(mem);
+}
+
 static void ss(jute::view key) {
   auto & val = g_mem[key];
   auto j = 0;
   for (auto i = 0; val[i]; i++, j++) {
     auto arg = after(key);
     char idx = 1;
+    char c = val[i];
     while (arg.data()) {
       auto v = jute::view::unsafe(val.begin() + i).subview(arg.size()).before;
       if (v != arg) {
@@ -145,23 +154,12 @@ static void call(jute::view fn, bool left) {
 
 static void run(unsigned mark, bool left) {
   auto fn = jute::view::unsafe(param_roll::at(mark));
-  putln(fn);
-  if (fn == "ds") {
-    auto key = after(fn);
-    auto val = after(key);
-    hai::varray<char> mem { static_cast<unsigned>(val.size()) + 1 };
-    for (auto i = 0; i < val.size(); i++) mem.push_back(val[i]);
-    mem.push_back(0);
-    putln("  ", key, " ", val);
-    g_mem[key] = traits::move(mem);
-  } else if (fn == "ss") {
-    auto key = after(fn);
-    ss(key);
-  } else if (fn.size()) {
-    call(fn, left);
-  } else {
-    die("trying to call an empty function");
-  }
+  auto arg = after(fn);
+  putln(fn, " ", arg);
+  if      (fn == "ds") ds(arg);
+  else if (fn == "ss") ss(arg);
+  else if (fn.size())  call(fn, left);
+  else die("trying to call an empty function");
 }
 
 static void parser();
