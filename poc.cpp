@@ -30,7 +30,8 @@ namespace input_roll {
     auto c = g_head->data.begin()[g_head->rpos++];
 
     if (g_head->rpos >= g_head->data.size()) {
-      g_head = traits::move(g_head->next);
+      auto tmp = traits::move(g_head->next);
+      g_head = traits::move(tmp);
     }
 
     return c;
