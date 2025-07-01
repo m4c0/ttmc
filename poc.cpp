@@ -252,8 +252,8 @@ static void parser() {
   }
 }
 
-int main() try {
-  input_roll::push(jojo::read_cstr("example.ttm"));
+static void parse_file(const char * name) {
+  input_roll::push(jojo::read_cstr(jute::view::unsafe(name)));
 
   while (!input_roll::empty()) {
     switch (auto c = input_roll::getc()) {
@@ -264,6 +264,10 @@ int main() try {
   }
 
   storage_roll::dump();
+}
+
+int main(int argc, char ** argv) try {
+  for (auto i = 1; i < argc; i++) parse_file(argv[i]);
 } catch (...) {
   return 1;
 }
