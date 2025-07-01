@@ -101,11 +101,12 @@ static void ss(jute::view key) {
         idx++;
         if (idx == max_args) die("too many arguments to ss of ", key);
       } else {
-        val[j] = idx;
+        c = idx;
         i += arg.size() - 1;
-        idx = -1;
+        break;
       }
     }
+    val[j] = c;
   }
   val[j] = 0;
 }
