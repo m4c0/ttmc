@@ -37,6 +37,15 @@ namespace input_roll {
   }
 
   bool empty() { return !g_head; }
+
+  void dump() {
+    auto * n = &*g_head;
+    while (n) {
+      put(n->data.begin() + n->rpos);
+      n = &*(n->next);
+    }
+    putln();
+  }
 }
 
 namespace param_roll {
@@ -253,8 +262,14 @@ int main() try {
       default:  storage_roll::push(c); break;
     }
   }
+
+  putln("-=-=-=-=- input -=-=-=-=-=-");
+  input_roll::dump();
+  putln("-=-=-=-=- param -=-=-=-=-=-");
   param_roll::dump();
+  putln("-=-=-=-=- storage -=-=-=-=-=-");
   storage_roll::dump();
+  putln("-=-=-=-=- done -=-=-=-=-=-");
 } catch (...) {
   return 1;
 }
