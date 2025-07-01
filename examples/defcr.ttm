@@ -1,0 +1,9 @@
+#<ds;def;<##<ds;name;<text>>
+##<ss;name;subs>>>
+#<ss;def;name;subs;text>
+
+#<def;defcr;<name;subs;crs;text>;<
+  ##<ds;name;<text>>
+  ##<ss;name;subs>
+  ##<cr;name;crs>
+>>

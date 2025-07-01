@@ -1,0 +1,16 @@
+#<ds;def;<##<ds;name;<text>>
+##<ss;name;subs>>>
+#<ss;def;name;subs;text>
+
+#<def;plus;sn;<
+  #<cc;sn>
+  #<plusx;sn;#<cc;sn>>
+>>
+#<def;plusx;<sn;ch>;<
+  #<eq?;ch;;;<+ch#<plusx;sn;#<cc;sn>>>>
+>>
+
+#<ds;X;ABCD>
+#<plusx;X>
+
+This should yield A+B+C+D
