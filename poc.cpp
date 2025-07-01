@@ -50,6 +50,11 @@ namespace param_roll {
   auto end() { return g_data.end(); }
 
   auto mark() { return g_data.size(); }
+
+  void dump() {
+    for (auto c : g_data) put(c);
+    putln();
+  }
 }
 
 namespace storage_roll {
@@ -57,6 +62,11 @@ namespace storage_roll {
 
   void push(char c) {
     g_data.push_back(c);
+  }
+
+  void dump() {
+    for (auto c : g_data) put(c);
+    putln();
   }
 }
 
@@ -102,23 +112,47 @@ static void call(jute::view fn, bool left) {
   }
 
   auto & data = g_mem[fn];
-  for (auto c : data) {
-    if (c && c < max_args) {
-      for (auto cc : args[static_cast<int>(c)]) param_roll::push(cc);
-    } else {
-      param_roll::push(c);
+  if (left) {
+    for (auto c : data) {
+      if (c && c < max_args) {
+        for (auto cc : args[static_cast<int>(c)]) param_roll::push(cc);
+      } else {
+        param_roll::push(c);
+      }
     }
+  } else {
+    unsigned count = 0;
+    for (auto c : data) {
+      if (c && c < max_args) {
+        count += args[static_cast<int>(c)].size();
+      } else {
+        count++;
+      }
+    }
+
+    hai::cstr buf { count };
+    auto ptr = buf.begin();
+    for (auto c : data) {
+      if (c && c < max_args) {
+        for (auto cc : args[static_cast<int>(c)]) *ptr++ = cc;
+      } else {
+        *ptr++ = c;
+      }
+    }
+    input_roll::push(traits::move(buf));
   }
 }
 
 static void run(unsigned mark, bool left) {
   auto fn = jute::view::unsafe(param_roll::at(mark));
+  putln(fn);
   if (fn == "ds") {
     auto key = after(fn);
     auto val = after(key);
     hai::varray<char> mem { static_cast<unsigned>(val.size()) + 1 };
     for (auto i = 0; i < val.size(); i++) mem.push_back(val[i]);
     mem.push_back(0);
+    putln("  ", key, " ", val);
     g_mem[key] = traits::move(mem);
   } else if (fn == "ss") {
     auto key = after(fn);
@@ -212,6 +246,8 @@ static void parser() {
 int main() try {
   input_roll::push(jojo::read_cstr("example.ttm"));
   parser();
+  param_roll::dump();
+  storage_roll::dump();
 } catch (...) {
   return 1;
 }
