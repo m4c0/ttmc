@@ -109,6 +109,7 @@ static void ss(jute::view key) {
     val[j] = c;
   }
   val[j] = 0;
+  val.truncate(j);
 }
 
 static void call(jute::view fn, bool left) {
@@ -121,7 +122,7 @@ static void call(jute::view fn, bool left) {
     arg = after(arg);
   }
 
-  auto & data = g_mem[fn];
+  const auto & data = g_mem[fn];
   if (left) {
     for (auto c : data) {
       if (c && c < max_args) {
@@ -231,7 +232,7 @@ static void parse_pound() {
 static void parser() {
   while (!input_roll::empty()) {
     switch (auto c = input_roll::getc()) {
-      case 0:  break;
+      case 0:   break;
       case '@': parse_at(); break;
       case '#': parse_pound(); break;
       case '<': parse_lt(); break;
