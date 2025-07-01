@@ -245,7 +245,14 @@ static void parser() {
 
 int main() try {
   input_roll::push(jojo::read_cstr("example.ttm"));
-  parser();
+
+  while (!input_roll::empty()) {
+    switch (auto c = input_roll::getc()) {
+      case 0:   break;
+      case '#': parse_pound(); break;
+      default:  storage_roll::push(c); break;
+    }
+  }
   param_roll::dump();
   storage_roll::dump();
 } catch (...) {
