@@ -166,7 +166,6 @@ static void call(jute::view fn, bool left) {
 static void run(unsigned mark, bool left) {
   auto fn = jute::view::unsafe(param_roll::at(mark));
   auto arg = after(fn);
-  putln(fn, " ", arg);
   if      (fn == "ds") ds(arg);
   else if (fn == "ss") ss(arg);
   else if (fn.size())  call(fn, left);
@@ -263,13 +262,7 @@ int main() try {
     }
   }
 
-  putln("-=-=-=-=- input -=-=-=-=-=-");
-  input_roll::dump();
-  putln("-=-=-=-=- param -=-=-=-=-=-");
-  param_roll::dump();
-  putln("-=-=-=-=- storage -=-=-=-=-=-");
   storage_roll::dump();
-  putln("-=-=-=-=- done -=-=-=-=-=-");
 } catch (...) {
   return 1;
 }
