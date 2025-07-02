@@ -132,6 +132,11 @@ static void call(jute::view fn, bool left) {
     arg = after(arg);
   }
 
+  if (!g_mem.has(fn)) {
+    errln("missing definition of #<", fn, ">");
+    return;
+  }
+
   const auto & data = g_mem[fn];
   if (left) {
     for (auto c : data) {
