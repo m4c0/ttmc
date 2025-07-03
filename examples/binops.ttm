@@ -1,0 +1,3 @@
+#<eq?;a;;fail;ok>
+#<eq?;;;ok;fail>
+#<eq?;;a;fail;ok>

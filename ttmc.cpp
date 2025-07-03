@@ -100,6 +100,19 @@ static void ds(jute::view key) {
   g_mem[key] = traits::move(mem);
 }
 
+static void eqq(jute::view s1) {
+  auto s2 = after(s1);
+  auto s3 = after(s2);
+  auto s4 = after(s3);
+  
+  err("compare [", s1, "][", s2, "] yields ");
+  if (s1 == s2) {
+    errln(s3);
+  } else {
+    errln(s4);
+  }
+}
+
 static void ss(jute::view key) {
   // TODO: support for substring priority by length
   //       i.e. #<ss;X;IS;THIS> matches THIS with higher precedence
@@ -182,9 +195,10 @@ static void call(jute::view fn, bool left) {
 static void run(unsigned mark, bool left) {
   auto fn = jute::view::unsafe(param_roll::at(mark));
   auto arg = after(fn);
-  if      (fn == "ds") ds(arg);
-  else if (fn == "ps") ps(arg);
-  else if (fn == "ss") ss(arg);
+  if      (fn == "ds")  ds(arg);
+  else if (fn == "eq?") eqq(arg);
+  else if (fn == "ps")  ps(arg);
+  else if (fn == "ss")  ss(arg);
   else if (fn.size())  call(fn, left);
   else die("trying to call an empty function");
 
