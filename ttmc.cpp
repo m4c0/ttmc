@@ -101,6 +101,15 @@ static jute::view after(jute::view v) {
   return jute::view::unsafe(e);
 }
 
+constexpr auto atoi(jute::view v) {
+  int res = 0;
+  for (auto c : v) {
+    if (c < '0' || c > '9') break;
+    res = res * 10 + (c - '0');
+  }
+  return res;
+}
+
 struct mem_element {
   hai::varray<char> data {};
   unsigned r_pos = 0;
@@ -120,6 +129,16 @@ static void ds(jute::view key) {
   for (auto i = 0; i < val.size(); i++) mem.push_back(val[i]);
   mem.push_back(0);
   g_mem[key] = { traits::move(mem) };
+}
+
+static void eqn(jute::view s1, roll auto roll) {
+  auto s2 = after(s1);
+  auto s3 = after(s2);
+  auto s4 = after(s3);
+
+  auto n1 = atoi(s1);
+  auto n2 = atoi(s2);
+  roll.push(n1 == n2 ? s3 : s4);
 }
 
 static void eqq(jute::view s1, roll auto roll) {
@@ -205,8 +224,9 @@ static void run(unsigned mark, roll auto roll) {
 
   auto fn = jute::view::unsafe(param_roll::at(mark));
   auto arg = after(fn);
-  if      (fn == "ds")  ds(arg);
-  else if (fn == "cc")  cc(arg, roll);
+  if      (fn == "cc")  cc(arg, roll);
+  else if (fn == "ds")  ds(arg);
+  else if (fn == "eq")  eqn(arg, roll);
   else if (fn == "eq?") eqq(arg, roll);
   else if (fn == "ps")  ps(arg);
   else if (fn == "ss")  ss(arg);
