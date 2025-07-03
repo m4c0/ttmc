@@ -61,6 +61,8 @@ namespace param_roll {
 
   auto mark() { return g_data.size(); }
 
+  void truncate_at(unsigned m) { g_data.truncate(m); }
+
   void dump() {
     for (auto c : g_data) put(c);
     putln();
@@ -184,6 +186,8 @@ static void run(unsigned mark, bool left) {
   else if (fn == "ss") ss(arg);
   else if (fn.size())  call(fn, left);
   else die("trying to call an empty function");
+
+  param_roll::truncate_at(mark);
 }
 
 static void parser();
