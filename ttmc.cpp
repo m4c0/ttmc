@@ -56,6 +56,7 @@ namespace param_roll {
     if (g_data.size() == g_data.capacity()) die("parameter roll overflow");
     g_data.push_back(c);
   }
+  void push(hai::cstr d) { for (auto c : d) push(c); }
 
   auto at(unsigned m) { return g_data.begin() + m; }
   auto end() { return g_data.end(); }
@@ -161,33 +162,28 @@ static void call(jute::view fn, bool left) {
   }
 
   const auto & data = g_mem[fn];
-  if (left) {
-    for (auto c : data) {
-      if (c && c < max_args) {
-        for (auto cc : args[static_cast<int>(c)]) param_roll::push(cc);
-      } else {
-        param_roll::push(c);
-      }
+  unsigned count = 0;
+  for (auto c : data) {
+    if (c && c < max_args) {
+      count += args[static_cast<int>(c)].size();
+    } else {
+      count++;
     }
-  } else {
-    unsigned count = 0;
-    for (auto c : data) {
-      if (c && c < max_args) {
-        count += args[static_cast<int>(c)].size();
-      } else {
-        count++;
-      }
-    }
+  }
 
-    hai::cstr buf { count };
-    auto ptr = buf.begin();
-    for (auto c : data) {
-      if (c && c < max_args) {
-        for (auto cc : args[static_cast<int>(c)]) *ptr++ = cc;
-      } else {
-        *ptr++ = c;
-      }
+  hai::cstr buf { count };
+  auto ptr = buf.begin();
+  for (auto c : data) {
+    if (c && c < max_args) {
+      for (auto cc : args[static_cast<int>(c)]) *ptr++ = cc;
+    } else {
+      *ptr++ = c;
     }
+  }
+
+  if (left) {
+    param_roll::push(traits::move(buf));
+  } else {
     input_roll::push(traits::move(buf));
   }
 }
