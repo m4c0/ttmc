@@ -8,23 +8,24 @@ import print;
 
 static constexpr const auto max_args = 7;
 
-namespace input_roll {
+struct input_roll {
   struct node {
     hai::cstr data {};
     unsigned rpos = 0;
     hai::uptr<node> next {};
   };
 
-  static hai::uptr<node> g_head {};
+  static hai::uptr<node> g_head;
 
-  void push(hai::cstr d) {
+  static void push(hai::cstr d) {
     g_head.reset(new node {
       .data = traits::move(d),
       .next = traits::move(g_head),
     });
   }
+  static void push(jute::view d) { push(d.cstr()); }
 
-  char getc() {
+  static char getc() {
     if (!g_head) return 0;
 
     auto c = g_head->data.begin()[g_head->rpos++];
@@ -37,9 +38,9 @@ namespace input_roll {
     return c;
   }
 
-  bool empty() { return !g_head; }
+  static bool empty() { return !g_head; }
 
-  void dump() {
+  static void dump() {
     auto * n = &*g_head;
     while (n) {
       put(n->data.begin() + n->rpos);
@@ -47,28 +48,31 @@ namespace input_roll {
     }
     putln();
   }
-}
+};
+hai::uptr<input_roll::node> input_roll::g_head {};
 
-namespace param_roll {
-  hai::varray<char> g_data { 102400 };
+struct param_roll {
+  static hai::varray<char> g_data;
 
-  void push(char c) {
+  static void push(char c) {
     if (g_data.size() == g_data.capacity()) die("parameter roll overflow");
     g_data.push_back(c);
   }
-  void push(hai::cstr d) { for (auto c : d) push(c); }
+  static void push(hai::cstr d) { for (auto c : d) push(c); }
+  static void push(jute::view d) { for (auto c : d) push(c); }
 
-  auto at(unsigned m) { return g_data.begin() + m; }
-  auto end() { return g_data.end(); }
+  static auto at(unsigned m) { return g_data.begin() + m; }
+  static auto end() { return g_data.end(); }
 
-  auto mark() { return g_data.size(); }
+  static auto mark() { return g_data.size(); }
 
-  void truncate_at(unsigned m) { g_data.truncate(m); }
+  static void truncate_at(unsigned m) { g_data.truncate(m); }
 
-  void dump() {
+  static void dump() {
     putln(jute::view { g_data.begin(), g_data.size() });
   }
-}
+};
+hai::varray<char> param_roll::g_data { 102400 };
 
 namespace storage_roll {
   hai::varray<char> g_data { 102400 };
@@ -82,6 +86,12 @@ namespace storage_roll {
     putln(jute::view { g_data.begin(), g_data.size() });
   }
 }
+
+template<typename T>
+concept roll = requires (jute::view v, hai::cstr c) {
+  T::push(v);
+  T::push(traits::move(c));
+};
 
 static jute::view after(jute::view v) {
   if (!v.begin()) return {};
@@ -101,17 +111,11 @@ static void ds(jute::view key) {
   g_mem[key] = traits::move(mem);
 }
 
-static void eqq(jute::view s1) {
+static void eqq(jute::view s1, roll auto roll) {
   auto s2 = after(s1);
   auto s3 = after(s2);
   auto s4 = after(s3);
-  
-  err("compare [", s1, "][", s2, "] yields ");
-  if (s1 == s2) {
-    errln(s3);
-  } else {
-    errln(s4);
-  }
+  roll.push(s1 == s2 ? s3 : s4);
 }
 
 static void ss(jute::view key) {
@@ -146,7 +150,7 @@ static void ss(jute::view key) {
 
 static void ps(jute::view arg) { put(arg); }
 
-static void call(jute::view fn, bool left) {
+static void call(jute::view fn, roll auto roll) {
   jute::view args[max_args];
 
   unsigned i = 1;
@@ -181,21 +185,17 @@ static void call(jute::view fn, bool left) {
     }
   }
 
-  if (left) {
-    param_roll::push(traits::move(buf));
-  } else {
-    input_roll::push(traits::move(buf));
-  }
+  roll.push(traits::move(buf));
 }
 
-static void run(unsigned mark, bool left) {
+static void run(unsigned mark, roll auto roll) {
   auto fn = jute::view::unsafe(param_roll::at(mark));
   auto arg = after(fn);
   if      (fn == "ds")  ds(arg);
-  else if (fn == "eq?") eqq(arg);
+  else if (fn == "eq?") eqq(arg, roll);
   else if (fn == "ps")  ps(arg);
   else if (fn == "ss")  ss(arg);
-  else if (fn.size())  call(fn, left);
+  else if (fn.size())  call(fn, roll);
   else die("trying to call an empty function");
 
   param_roll::truncate_at(mark);
@@ -215,7 +215,7 @@ static void parse_dpound() {
     case '<': {
       auto mark = param_roll::mark();
       parser();
-      if (!input_roll::empty()) run(mark, true);
+      if (!input_roll::empty()) run(mark, param_roll {});
       break;
     }
     default: 
@@ -256,7 +256,7 @@ static void parse_pound() {
     case '<': {
       auto mark = param_roll::mark();
       parser();
-      if (!input_roll::empty()) run(mark, false);
+      if (!input_roll::empty()) run(mark, input_roll {});
       break;
     }
     default: 
