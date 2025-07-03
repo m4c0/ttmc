@@ -1,3 +1,7 @@
+>>>
+>>> This should yield A+B+C+D
+>>>
+
 #<ds;def;<##<ds;name;<text>>
 ##<ss;name;subs>>>
 #<ss;def;name;subs;text>
@@ -13,4 +17,3 @@
 #<ds;X;ABCD>
 #<plusx;X>
 
-This should yield A+B+C+D
