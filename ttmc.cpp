@@ -201,6 +201,8 @@ static void call(jute::view fn, roll auto roll) {
 }
 
 static void run(unsigned mark, roll auto roll) {
+  // TODO: case insensitive
+
   auto fn = jute::view::unsafe(param_roll::at(mark));
   auto arg = after(fn);
   if      (fn == "ds")  ds(arg);
