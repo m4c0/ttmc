@@ -306,7 +306,8 @@ static void parse_pound() {
 static void parser() {
   while (!input_roll::empty()) {
     switch (auto c = input_roll::getc()) {
-      case 0:   break;
+      case 0:    break;
+      case '\n': break;
       case '@': parse_at(); break;
       case '#': parse_pound(); break;
       case '<': parse_lt(); break;
