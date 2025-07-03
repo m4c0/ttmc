@@ -83,9 +83,10 @@ namespace storage_roll {
 }
 
 static jute::view after(jute::view v) {
+  if (!v.begin()) return {};
+
   auto e = v.end() + 1;
   if (e > param_roll::end()) return {};
-  if (!*e) return {};
   return jute::view::unsafe(e);
 }
 
