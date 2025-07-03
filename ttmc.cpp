@@ -98,10 +98,15 @@ static void ds(jute::view key) {
 }
 
 static void ss(jute::view key) {
+  // TODO: support for substring priority by length
+  //       i.e. #<ss;X;IS;THIS> matches THIS with higher precedence
+  // TODO: introduce the "residual pointer" (note: keep "inital pointer")
   auto & val = g_mem[key];
   auto j = 0;
   for (auto i = 0; val[i]; i++, j++) {
     auto arg = after(key);
+    // TODO: start from the number of existing parameters
+    //       i.e. #<ss;X;A;B>#<ss;X;C> is the same as #<ss;X;A;B;C>
     char idx = 1;
     char c = val[i];
     while (arg.data()) {
