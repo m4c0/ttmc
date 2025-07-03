@@ -50,10 +50,11 @@ namespace input_roll {
 }
 
 namespace param_roll {
-  hai::varray<char> g_data { 10240 };
+  hai::varray<char> g_data { 102400 };
 
   void push(char c) {
-    g_data.push_back_doubling(c);
+    if (g_data.size() == g_data.capacity()) die("parameter roll overflow");
+    g_data.push_back(c);
   }
 
   auto at(unsigned m) { return g_data.begin() + m; }
@@ -64,21 +65,20 @@ namespace param_roll {
   void truncate_at(unsigned m) { g_data.truncate(m); }
 
   void dump() {
-    for (auto c : g_data) put(c);
-    putln();
+    putln(jute::view { g_data.begin(), g_data.size() });
   }
 }
 
 namespace storage_roll {
-  hai::chain<char> g_data { 10240 };
+  hai::varray<char> g_data { 102400 };
 
   void push(char c) {
+    if (g_data.size() == g_data.capacity()) die("storage roll overflow");
     g_data.push_back(c);
   }
 
   void dump() {
-    for (auto c : g_data) put(c);
-    putln();
+    putln(jute::view { g_data.begin(), g_data.size() });
   }
 }
 
