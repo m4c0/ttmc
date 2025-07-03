@@ -122,6 +122,8 @@ static void ss(jute::view key) {
   val.truncate(j);
 }
 
+static void ps(jute::view arg) { put(arg); }
+
 static void call(jute::view fn, bool left) {
   jute::view args[max_args];
 
@@ -173,6 +175,7 @@ static void run(unsigned mark, bool left) {
   auto fn = jute::view::unsafe(param_roll::at(mark));
   auto arg = after(fn);
   if      (fn == "ds") ds(arg);
+  else if (fn == "ps") ps(arg);
   else if (fn == "ss") ss(arg);
   else if (fn.size())  call(fn, left);
   else die("trying to call an empty function");
