@@ -273,8 +273,8 @@ static void parser() {
       case '@': parse_at(); break;
       case '#': parse_pound(); break;
       case '<': parse_lt(); break;
-      case ';': param_roll::push(0); break;
-      case '>': param_roll::push(0); return;
+      case ';': param_roll::push('\0'); break;
+      case '>': param_roll::push('\0'); return;
       default:  param_roll::push(c); break;
     }
   }
