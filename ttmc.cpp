@@ -101,14 +101,25 @@ static jute::view after(jute::view v) {
   return jute::view::unsafe(e);
 }
 
-static hashley::fin<hai::varray<char>> g_mem { 127 }; 
+struct mem_element {
+  hai::varray<char> data {};
+  unsigned r_pos = 0;
+};
+static hashley::fin<mem_element> g_mem { 127 }; 
+
+static void cc(jute::view key, roll auto roll) {
+  auto & val = g_mem[key];
+  jute::view c {};
+  if (val.r_pos < val.data.size()) c = { val.data.begin() + val.r_pos++, 1 };
+  roll.push(c);
+}
 
 static void ds(jute::view key) {
   auto val = after(key);
   hai::varray<char> mem { static_cast<unsigned>(val.size()) + 1 };
   for (auto i = 0; i < val.size(); i++) mem.push_back(val[i]);
   mem.push_back(0);
-  g_mem[key] = traits::move(mem);
+  g_mem[key] = { traits::move(mem) };
 }
 
 static void eqq(jute::view s1, roll auto roll) {
@@ -124,14 +135,14 @@ static void ss(jute::view key) {
   // TODO: introduce the "residual pointer" (note: keep "inital pointer")
   auto & val = g_mem[key];
   auto j = 0;
-  for (auto i = 0; val[i]; i++, j++) {
+  for (auto i = 0; val.data[i]; i++, j++) {
     auto arg = after(key);
     // TODO: start from the number of existing parameters
     //       i.e. #<ss;X;A;B>#<ss;X;C> is the same as #<ss;X;A;B;C>
     char idx = 1;
-    char c = val[i];
+    char c = val.data[i];
     while (arg.data()) {
-      auto v = jute::view::unsafe(val.begin() + i).subview(arg.size()).before;
+      auto v = jute::view::unsafe(val.data.begin() + i).subview(arg.size()).before;
       if (v != arg) {
         arg = after(arg);
         idx++;
@@ -142,10 +153,10 @@ static void ss(jute::view key) {
         break;
       }
     }
-    val[j] = c;
+    val.data[j] = c;
   }
-  val[j] = 0;
-  val.truncate(j);
+  val.data[j] = 0;
+  val.data.truncate(j);
 }
 
 static void ps(jute::view arg) { put(arg); }
@@ -165,7 +176,8 @@ static void call(jute::view fn, roll auto roll) {
     return;
   }
 
-  const auto & data = g_mem[fn];
+  // TODO: should we consider "residuals" here?
+  const auto & data = g_mem[fn].data;
   unsigned count = 0;
   for (auto c : data) {
     if (c && c < max_args) {
@@ -192,6 +204,7 @@ static void run(unsigned mark, roll auto roll) {
   auto fn = jute::view::unsafe(param_roll::at(mark));
   auto arg = after(fn);
   if      (fn == "ds")  ds(arg);
+  else if (fn == "cc")  cc(arg, roll);
   else if (fn == "eq?") eqq(arg, roll);
   else if (fn == "ps")  ps(arg);
   else if (fn == "ss")  ss(arg);
