@@ -117,6 +117,8 @@ struct mem_element {
 static hashley::fin<mem_element> g_mem { 127 }; 
 
 static void cc(jute::view key, roll auto roll) {
+  if (!g_mem.has(key)) return;
+
   auto & val = g_mem[key];
   jute::view c {};
   if (val.r_pos < val.data.size()) c = { val.data.begin() + val.r_pos++, 1 };
