@@ -9,19 +9,21 @@ import print;
 static constexpr const auto max_args = 7;
 
 struct input_roll {
+  struct node;
+
   struct node {
     hai::cstr data {};
     unsigned rpos = 0;
-    hai::uptr<node> next {};
+    node * next {};
   };
 
-  static hai::uptr<node> g_head;
+  static node * g_head;
 
   static void push(hai::cstr d) {
-    g_head.reset(new node {
+    g_head = new node {
       .data = traits::move(d),
-      .next = traits::move(g_head),
-    });
+      .next = g_head,
+    };
   }
   static void push(jute::view d) { push(d.cstr()); }
 
@@ -31,8 +33,9 @@ struct input_roll {
     auto c = g_head->data.begin()[g_head->rpos++];
 
     if (g_head->rpos >= g_head->data.size()) {
-      auto tmp = traits::move(g_head->next);
-      g_head = traits::move(tmp);
+      auto tmp = g_head;
+      g_head = g_head->next;
+      delete tmp;
     }
 
     return c;
@@ -49,7 +52,7 @@ struct input_roll {
     putln();
   }
 };
-hai::uptr<input_roll::node> input_roll::g_head {};
+input_roll::node * input_roll::g_head {};
 
 struct param_roll {
   static hai::varray<char> g_data;
