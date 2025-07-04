@@ -8,7 +8,7 @@ import print;
 
 static constexpr const auto max_args = 7;
 
-struct input_roll {
+namespace input_roll {
   struct node;
 
   struct node {
@@ -17,7 +17,7 @@ struct input_roll {
     node * next {};
   };
 
-  static node * g_head;
+  static node * g_head {};
 
   static void push(const char * data, unsigned sz) {
     auto d = new char[sz] {};
@@ -27,7 +27,6 @@ struct input_roll {
       .next = g_head,
     };
   }
-  static void push(auto d) { push(d.data(), d.size()); }
 
   static char getc() {
     if (!g_head) return 0;
@@ -45,6 +44,7 @@ struct input_roll {
 
   static bool empty() { return !g_head; }
 
+  [[maybe_unused]]
   static void dump() {
     auto * n = &*g_head;
     while (n) {
@@ -54,17 +54,15 @@ struct input_roll {
     putln();
   }
 };
-input_roll::node * input_roll::g_head {};
 
-struct param_roll {
-  static hai::varray<char> g_data;
+namespace param_roll {
+  static hai::varray<char> g_data { 102400 };
 
-  static void push(char c) {
-    if (g_data.size() == g_data.capacity()) die("parameter roll overflow");
-    g_data.push_back(c);
+  static void push(const char * c, unsigned sz) {
+    if (g_data.size() + sz == g_data.capacity()) die("parameter roll overflow");
+    for (auto i = 0; i < sz; i++) g_data.push_back(c[i]);
   }
-  static void push(hai::cstr d) { for (auto c : d) push(c); }
-  static void push(jute::view d) { for (auto c : d) push(c); }
+  static void push(char c) { push(&c, 1); }
 
   static auto at(unsigned m) { return g_data.begin() + m; }
   static auto end() { return g_data.end(); }
@@ -73,11 +71,11 @@ struct param_roll {
 
   static void truncate_at(unsigned m) { g_data.truncate(m); }
 
+  [[maybe_unused]]
   static void dump() {
     putln(jute::view { g_data.begin(), g_data.size() });
   }
 };
-hai::varray<char> param_roll::g_data { 102400 };
 
 namespace storage_roll {
   hai::varray<char> g_data { 102400 };
@@ -92,11 +90,7 @@ namespace storage_roll {
   }
 }
 
-template<typename T>
-concept roll = requires (jute::view v, hai::cstr c) {
-  T::push(v);
-  T::push(traits::move(c));
-};
+using roll_t = void (*)(const char *, unsigned);
 
 static jute::view after(jute::view v) {
   if (!v.begin()) return {};
@@ -125,13 +119,13 @@ struct mem_element {
 };
 static hashley::fin<mem_element> g_mem { 127 }; 
 
-static void cc(jute::view key, roll auto roll) {
+static void cc(jute::view key, roll_t roll) {
   if (!g_mem.has(key)) return;
 
   auto & val = g_mem[key];
   jute::view c {};
   if (val.r_pos < val.data.size()) c = { val.data.begin() + val.r_pos++, 1 };
-  roll.push(c);
+  roll(c.begin(), c.size());
 }
 
 static void ds(jute::view key) {
@@ -142,21 +136,23 @@ static void ds(jute::view key) {
   g_mem[key] = { traits::move(mem) };
 }
 
-static void eqn(jute::view s1, roll auto roll) {
+static void eqn(jute::view s1, roll_t roll) {
   auto s2 = after(s1);
   auto s3 = after(s2);
   auto s4 = after(s3);
 
   auto n1 = str_to_i32(s1);
   auto n2 = str_to_i32(s2);
-  roll.push(n1 == n2 ? s3 : s4);
+  auto res = n1 == n2 ? s3 : s4;
+  roll(res.begin(), res.size());
 }
 
-static void eqq(jute::view s1, roll auto roll) {
+static void eqq(jute::view s1, roll_t roll) {
   auto s2 = after(s1);
   auto s3 = after(s2);
   auto s4 = after(s3);
-  roll.push(s1 == s2 ? s3 : s4);
+  auto res = s1 == s2 ? s3 : s4;
+  roll(res.begin(), res.size());
 }
 
 static void ss(jute::view key) {
@@ -191,7 +187,7 @@ static void ss(jute::view key) {
 
 static void ps(jute::view arg) { put(arg); }
 
-static void call(jute::view fn, roll auto roll) {
+static void call(jute::view fn, roll_t roll) {
   jute::view args[max_args];
 
   unsigned i = 1;
@@ -227,10 +223,10 @@ static void call(jute::view fn, roll auto roll) {
     }
   }
 
-  roll.push(traits::move(buf));
+  roll(buf.begin(), buf.size());
 }
 
-static void run(unsigned mark, roll auto roll) {
+static void run(unsigned mark, roll_t roll) {
   // TODO: case insensitive
 
   auto fn = jute::view::unsafe(param_roll::at(mark));
@@ -261,7 +257,7 @@ static void parse_dpound() {
     case '<': {
       auto mark = param_roll::mark();
       parser();
-      if (!input_roll::empty()) run(mark, param_roll {});
+      if (!input_roll::empty()) run(mark, param_roll::push);
       break;
     }
     default: 
@@ -302,7 +298,7 @@ static void parse_pound() {
     case '<': {
       auto mark = param_roll::mark();
       parser();
-      if (!input_roll::empty()) run(mark, input_roll {});
+      if (!input_roll::empty()) run(mark, input_roll::push);
       break;
     }
     default: 
@@ -328,7 +324,8 @@ static void parser() {
 }
 
 static void parse_file(const char * name) {
-  input_roll::push(jojo::read_cstr(jute::view::unsafe(name)));
+  auto file = jojo::read_cstr(jute::view::unsafe(name));
+  input_roll::push(file.begin(), file.size());
 
   while (!input_roll::empty()) {
     switch (auto c = input_roll::getc()) {
