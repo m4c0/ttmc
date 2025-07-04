@@ -8,6 +8,13 @@ import print;
 
 static constexpr const auto max_args = 7;
 
+static void assert__(const char * msg, const char * file, int line) {
+  die(file, ":", line, ": ", msg);
+}
+#define assert(X) do {               \
+  if (!(X)) assert__("assertion failed: " #X " around ", __FILE__, __LINE__); \
+} while (0)
+
 namespace input_roll {
   struct node;
 
@@ -64,13 +71,13 @@ namespace param_roll {
   static void dump() { putln(jute::view { g_data, g_ptr }); }
 
   static void push(const char * c, unsigned sz) {
-    if (g_ptr + sz >= buf_size) die("parameter roll overflow");
+    assert(g_ptr + sz < buf_size && "parameter roll overflow");
     for (auto i = 0; i < sz; i++) g_data[g_ptr++] = *c++;
   }
   static void push(char c) { push(&c, 1); }
 
   static auto at(unsigned m) {
-    if (m >= buf_size) die("parameter roll out-of-bounds access");
+    assert(m < buf_size && "parameter roll out-of-bounds access");
     return &g_data[m];
   }
   static auto end() { return &g_data[g_ptr]; }
@@ -78,8 +85,8 @@ namespace param_roll {
   static auto mark() { return g_ptr; }
 
   static void truncate_at(unsigned m) {
-    if (m >= buf_size) die("parameter roll out-of-bounds truncation");
-    if (m > g_ptr) die("parameter roll truncation beyond read point");
+    assert(m < buf_size && "parameter roll out-of-bounds truncation");
+    assert(m <= g_ptr && "parameter roll truncation beyond read point");
     g_ptr = m;
   }
 };
@@ -88,7 +95,7 @@ namespace storage_roll {
   hai::varray<char> g_data { 102400 };
 
   void push(char c) {
-    if (g_data.size() == g_data.capacity()) die("storage roll overflow");
+    assert(g_data.size() < g_data.capacity() && "storage roll overflow");
     g_data.push_back(c);
   }
 
@@ -179,7 +186,7 @@ static void ss(jute::view key) {
       if (v != arg) {
         arg = after(arg);
         idx++;
-        if (idx == max_args) die("too many arguments to ss of ", key);
+        assert(idx < max_args && "too many arguments for ss");
       } else {
         c = idx;
         i += arg.size() - 1;
@@ -245,7 +252,7 @@ static void run(unsigned mark, roll_t roll) {
   else if (fn == "ps")  ps(arg);
   else if (fn == "ss")  ss(arg);
   else if (fn.size())  call(fn, roll);
-  else die("trying to call an empty function");
+  else assert(false && "trying to call an empty function");
 
   param_roll::truncate_at(mark);
 }
