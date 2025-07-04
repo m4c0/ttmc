@@ -101,14 +101,18 @@ static jute::view after(jute::view v) {
   return jute::view::unsafe(e);
 }
 
-constexpr auto atoi(jute::view v) {
+static constexpr int str_to_i32(jute::view v) {
+  int sign = (v.size() && v[0] == '-') ? -1 : 1;
+  if (sign == -1) v = v.subview(1).after;
   int res = 0;
   for (auto c : v) {
     if (c < '0' || c > '9') break;
     res = res * 10 + (c - '0');
   }
-  return res;
+  return res * sign;
 }
+static_assert(str_to_i32("-23") == -23);
+static_assert(str_to_i32("948") == 948);
 
 struct mem_element {
   hai::varray<char> data {};
@@ -138,8 +142,8 @@ static void eqn(jute::view s1, roll auto roll) {
   auto s3 = after(s2);
   auto s4 = after(s3);
 
-  auto n1 = atoi(s1);
-  auto n2 = atoi(s2);
+  auto n1 = str_to_i32(s1);
+  auto n2 = str_to_i32(s2);
   roll.push(n1 == n2 ? s3 : s4);
 }
 
