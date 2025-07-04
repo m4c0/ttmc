@@ -8,14 +8,17 @@ import print;
 
 static constexpr const auto max_args = 7;
 
-static void assert__(const char * msg, const char * file, int line) {
-  die(file, ":", line, ": ", msg);
+namespace ttmc {
+  static void assert_impl(const char * msg, const char * file, int line) {
+    die(file, ":", line, ": ", msg);
+  }
 }
+
 #define assert(X) do {               \
-  if (!(X)) assert__("assertion failed: " #X " around ", __FILE__, __LINE__); \
+  if (!(X)) ttmc::assert_impl("assertion failed: " #X " around ", __FILE__, __LINE__); \
 } while (0)
 
-namespace input_roll {
+namespace ttmc::input_roll {
   struct node;
 
   struct node {
@@ -62,7 +65,7 @@ namespace input_roll {
   }
 };
 
-namespace param_roll {
+namespace ttmc::param_roll {
   static constexpr const auto buf_size = 102400;
   static char g_data[buf_size] {};
   static unsigned g_ptr = 0;
@@ -91,7 +94,7 @@ namespace param_roll {
   }
 };
 
-namespace storage_roll {
+namespace ttmc::storage_roll {
   static constexpr const auto buf_size = 102400;
   char g_data[buf_size] {};
   unsigned g_ptr = 0;
@@ -106,7 +109,11 @@ namespace storage_roll {
   }
 }
 
-using roll_t = void (*)(const char *, unsigned);
+namespace ttmc {
+  using roll_t = void (*)(const char *, unsigned);
+}
+
+using namespace ttmc;
 
 static jute::view after(jute::view v) {
   if (!v.begin()) return {};
