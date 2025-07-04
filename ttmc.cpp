@@ -45,7 +45,7 @@ namespace ttmc::input_roll {
     if (c == 0) {
       auto tmp = g_head;
       g_head = g_head->next;
-      delete tmp->data;
+      delete[] tmp->data;
       delete tmp;
     }
 
@@ -54,7 +54,6 @@ namespace ttmc::input_roll {
 
   static bool empty() { return !g_head; }
 
-  [[maybe_unused]]
   static void dump() {
     auto * n = &*g_head;
     while (n) {
@@ -69,9 +68,6 @@ namespace ttmc::param_roll {
   static constexpr const auto buf_size = 102400;
   static char g_data[buf_size] {};
   static unsigned g_ptr = 0;
-
-  [[maybe_unused]]
-  static void dump() { putln(jute::view { g_data, g_ptr }); }
 
   static void push(const char * c, unsigned sz) {
     assert(g_ptr + sz < buf_size && "parameter roll overflow");
@@ -92,6 +88,8 @@ namespace ttmc::param_roll {
     assert(m <= g_ptr && "parameter roll truncation beyond read point");
     g_ptr = m;
   }
+
+  static void dump() { putln(jute::view { g_data, g_ptr }); }
 };
 
 namespace ttmc::storage_roll {
@@ -111,6 +109,49 @@ namespace ttmc::storage_roll {
 
 namespace ttmc {
   using roll_t = void (*)(const char *, unsigned);
+
+  [[maybe_unused]] void dump_all() {
+    putln("-=-=-=-=-=-=-=-=-=- Input Roll");
+    input_roll::dump();
+    putln("-=-=-=-=-=-=-=-=-=- Parameter Roll");
+    param_roll::dump();
+    putln("-=-=-=-=-=-=-=-=-=- Storage Roll");
+    storage_roll::dump();
+  }
+}
+
+// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+// Anything below requires some API cleanup
+// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+namespace memory {
+  struct node {
+    char * data;
+    unsigned size;
+    unsigned r_pos = 0;
+  };
+  static hashley::fin<node> g_data { 127 }; 
+
+  static bool has(jute::view key) {
+    return g_data.has(key);
+  }
+
+  static node & get(jute::view key) {
+    assert(has(key) && "trying to fetch non-existant key");
+    return g_data[key];
+  }
+
+  static void set(jute::view key, const char * val, unsigned sz) {
+    auto & n = g_data[key];
+    if (n.data) delete[] n.data;
+
+    auto data = new char[sz];
+    for (auto i = 0; i < sz; i++) data[i] = val[i];
+
+    n.data = data;
+    n.size = sz;
+    n.r_pos = 0;
+  }
 }
 
 using namespace ttmc;
@@ -136,27 +177,19 @@ static constexpr int str_to_i32(jute::view v) {
 static_assert(str_to_i32("-23") == -23);
 static_assert(str_to_i32("948") == 948);
 
-struct mem_element {
-  hai::varray<char> data {};
-  unsigned r_pos = 0;
-};
-static hashley::fin<mem_element> g_mem { 127 }; 
-
 static void cc(jute::view key, roll_t roll) {
-  if (!g_mem.has(key)) return;
+  if (!memory::has(key)) return;
 
-  auto & val = g_mem[key];
-  jute::view c {};
-  if (val.r_pos < val.data.size()) c = { val.data.begin() + val.r_pos++, 1 };
-  roll(c.begin(), c.size());
+  auto & val = memory::get(key);
+  if (val.r_pos >= val.size) return;
+
+  roll(&val.data[val.r_pos], 1);
+  val.r_pos++;
 }
 
 static void ds(jute::view key) {
   auto val = after(key);
-  hai::varray<char> mem { static_cast<unsigned>(val.size()) + 1 };
-  for (auto i = 0; i < val.size(); i++) mem.push_back(val[i]);
-  mem.push_back(0);
-  g_mem[key] = { traits::move(mem) };
+  memory::set(key, val.begin(), val.size());
 }
 
 static void eqn(jute::view s1, roll_t roll) {
@@ -182,7 +215,7 @@ static void ss(jute::view key) {
   // TODO: support for substring priority by length
   //       i.e. #<ss;X;IS;THIS> matches THIS with higher precedence
   // TODO: introduce the "residual pointer" (note: keep "inital pointer")
-  auto & val = g_mem[key];
+  auto & val = memory::get(key);
   auto j = 0;
   for (auto i = 0; val.data[i]; i++, j++) {
     auto arg = after(key);
@@ -191,7 +224,7 @@ static void ss(jute::view key) {
     char idx = 1;
     char c = val.data[i];
     while (arg.data()) {
-      auto v = jute::view::unsafe(val.data.begin() + i).subview(arg.size()).before;
+      auto v = jute::view::unsafe(&val.data[i]).subview(arg.size()).before;
       if (v != arg) {
         arg = after(arg);
         idx++;
@@ -205,7 +238,7 @@ static void ss(jute::view key) {
     val.data[j] = c;
   }
   val.data[j] = 0;
-  val.data.truncate(j);
+  val.size = j;
 }
 
 static void ps(jute::view arg) { put(arg); }
@@ -220,33 +253,29 @@ static void call(jute::view fn, roll_t roll) {
     arg = after(arg);
   }
 
-  if (!g_mem.has(fn)) {
-    errln("missing definition of #<", fn, ">");
+  if (!memory::has(fn)) {
+    errln("warn: missing definition of #<", fn, ">");
     return;
   }
 
   // TODO: should we consider "residuals" here?
-  const auto & data = g_mem[fn].data;
-  unsigned count = 0;
-  for (auto c : data) {
-    if (c && c < max_args) {
-      count += args[static_cast<int>(c)].size();
-    } else {
-      count++;
+  const auto val = memory::get(fn);
+  char buf[300] {};
+  unsigned idx = 0;
+  for (auto i = 0; i < val.size; i++) {
+    auto c = val.data[i];
+    if (!c || c >= max_args) {
+      if (idx >= sizeof(buf)) die("function name overflow");
+      buf[idx++] = c;
+      continue;
+    }
+    auto a = args[static_cast<int>(c)];
+    for (auto c : a) {
+      if (idx >= sizeof(buf)) die("function name overflow");
+      buf[idx++] = c;
     }
   }
-
-  hai::cstr buf { count };
-  auto ptr = buf.begin();
-  for (auto c : data) {
-    if (c && c < max_args) {
-      for (auto cc : args[static_cast<int>(c)]) *ptr++ = cc;
-    } else {
-      *ptr++ = c;
-    }
-  }
-
-  roll(buf.begin(), buf.size());
+  roll(buf, idx);
 }
 
 static void run(unsigned mark, roll_t roll) {
