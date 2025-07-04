@@ -92,15 +92,17 @@ namespace param_roll {
 };
 
 namespace storage_roll {
-  hai::varray<char> g_data { 102400 };
+  static constexpr const auto buf_size = 102400;
+  char g_data[buf_size] {};
+  unsigned g_ptr = 0;
 
   void push(char c) {
-    assert(g_data.size() < g_data.capacity() && "storage roll overflow");
-    g_data.push_back(c);
+    assert(g_ptr < buf_size && "storage roll overflow");
+    g_data[g_ptr++] = c;
   }
 
   void dump() {
-    putln(jute::view { g_data.begin(), g_data.size() });
+    putln(jute::view { g_data, g_ptr });
   }
 }
 
