@@ -12,29 +12,31 @@ struct input_roll {
   struct node;
 
   struct node {
-    hai::cstr data {};
+    const char * data;
     unsigned rpos = 0;
     node * next {};
   };
 
   static node * g_head;
 
-  static void push(hai::cstr d) {
+  static void push(const char * data, unsigned sz) {
+    auto d = new char[sz] {};
+    for (auto i = 0; i < sz; i++) d[i] = data[i];
     g_head = new node {
-      .data = traits::move(d),
+      .data = d,
       .next = g_head,
     };
   }
-  static void push(jute::view d) { push(d.cstr()); }
+  static void push(auto d) { push(d.data(), d.size()); }
 
   static char getc() {
     if (!g_head) return 0;
 
-    auto c = g_head->data.begin()[g_head->rpos++];
-
-    if (g_head->rpos >= g_head->data.size()) {
+    char c = g_head->data[g_head->rpos++];
+    if (c == 0) {
       auto tmp = g_head;
       g_head = g_head->next;
+      delete tmp->data;
       delete tmp;
     }
 
@@ -46,7 +48,7 @@ struct input_roll {
   static void dump() {
     auto * n = &*g_head;
     while (n) {
-      put(n->data.begin() + n->rpos);
+      put(&n->data[n->rpos]);
       n = &*(n->next);
     }
     putln();
