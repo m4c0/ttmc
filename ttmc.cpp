@@ -56,24 +56,31 @@ namespace input_roll {
 };
 
 namespace param_roll {
-  static hai::varray<char> g_data { 102400 };
+  static constexpr const auto buf_size = 102400;
+  static char g_data[buf_size] {};
+  static unsigned g_ptr = 0;
+
+  [[maybe_unused]]
+  static void dump() { putln(jute::view { g_data, g_ptr }); }
 
   static void push(const char * c, unsigned sz) {
-    if (g_data.size() + sz == g_data.capacity()) die("parameter roll overflow");
-    for (auto i = 0; i < sz; i++) g_data.push_back(c[i]);
+    if (g_ptr + sz >= buf_size) die("parameter roll overflow");
+    for (auto i = 0; i < sz; i++) g_data[g_ptr++] = *c++;
   }
   static void push(char c) { push(&c, 1); }
 
-  static auto at(unsigned m) { return g_data.begin() + m; }
-  static auto end() { return g_data.end(); }
+  static auto at(unsigned m) {
+    if (m >= buf_size) die("parameter roll out-of-bounds access");
+    return &g_data[m];
+  }
+  static auto end() { return &g_data[g_ptr]; }
 
-  static auto mark() { return g_data.size(); }
+  static auto mark() { return g_ptr; }
 
-  static void truncate_at(unsigned m) { g_data.truncate(m); }
-
-  [[maybe_unused]]
-  static void dump() {
-    putln(jute::view { g_data.begin(), g_data.size() });
+  static void truncate_at(unsigned m) {
+    if (m >= buf_size) die("parameter roll out-of-bounds truncation");
+    if (m > g_ptr) die("parameter roll truncation beyond read point");
+    g_ptr = m;
   }
 };
 
