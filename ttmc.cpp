@@ -44,14 +44,14 @@ namespace ttmc::input_roll {
     if (!g_head) return 0;
 
     char c = g_head->data[g_head->rpos++];
-    if (c == 0) {
-      auto tmp = g_head;
-      g_head = g_head->next;
-      delete[] tmp->data;
-      delete tmp;
-    }
+    if (c != 0) return c;
 
-    return c;
+    auto tmp = g_head;
+    g_head = g_head->next;
+    delete[] tmp->data;
+    delete tmp;
+
+    return getc();
   }
 
   static bool empty() { return !g_head; }
