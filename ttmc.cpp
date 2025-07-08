@@ -6,6 +6,8 @@ import jojo;
 import jute;
 import print;
 
+using namespace jute::literals;
+
 static constexpr const auto max_args = 7;
 
 namespace ttmc {
@@ -178,11 +180,11 @@ static constexpr int str_to_i32(jute::view v) {
 static_assert(str_to_i32("-23") == -23);
 static_assert(str_to_i32("948") == 948);
 
-static void ad(jute::view a, roll_t roll) {
+[[nodiscard]] static jute::heap ad(jute::view a) {
   auto b = after(a);
 
   auto ab = str_to_i32(a) + str_to_i32(b);
-  if (ab == 0) return roll("0", 1);
+  if (ab == 0) return "0"_hs;
 
   char buf[128] {};
   auto p = buf;
@@ -195,22 +197,23 @@ static void ad(jute::view a, roll_t roll) {
     p++;
     n /= 10;
   }
-  auto e = p;
+  unsigned len = p - buf;
+  assert(len < sizeof(buf) && "buffer overflow converting number to string");
   while (ab > 0) {
     *--p = '0' + (ab % 10);
     ab /= 10;
   }
-  roll(buf, e - buf);
+
+  return jute::view { buf, len };
 }
 
-static void cc(jute::view key, roll_t roll) {
-  if (!memory::has(key)) return;
+[[nodiscard]] static jute::heap cc(jute::view key) {
+  if (!memory::has(key)) return {};
 
   auto & val = memory::get(key);
-  if (val.r_pos >= val.size) return;
+  if (val.r_pos >= val.size) return {};
 
-  roll(&val.data[val.r_pos], 1);
-  val.r_pos++;
+  return jute::view { &val.data[val.r_pos++], 1 };
 }
 
 static void ds(jute::view key) {
@@ -218,23 +221,21 @@ static void ds(jute::view key) {
   memory::set(key, val.begin(), val.size());
 }
 
-static void eqn(jute::view s1, roll_t roll) {
+[[nodiscard]] static jute::heap eqn(jute::view s1) {
   auto s2 = after(s1);
   auto s3 = after(s2);
   auto s4 = after(s3);
 
   auto n1 = str_to_i32(s1);
   auto n2 = str_to_i32(s2);
-  auto res = n1 == n2 ? s3 : s4;
-  roll(res.begin(), res.size());
+  return n1 == n2 ? s3 : s4;
 }
 
-static void eqq(jute::view s1, roll_t roll) {
+[[nodiscard]] static jute::heap eqq(jute::view s1) {
   auto s2 = after(s1);
   auto s3 = after(s2);
   auto s4 = after(s3);
-  auto res = s1 == s2 ? s3 : s4;
-  roll(res.begin(), res.size());
+  return s1 == s2 ? s3 : s4;
 }
 
 static void ss(jute::view key) {
@@ -267,9 +268,9 @@ static void ss(jute::view key) {
   val.size = j;
 }
 
-static void ps(jute::view arg) { put(arg); }
+static void ps(jute::view arg) { errln(arg); }
 
-static void call(jute::view fn, roll_t roll) {
+[[nodiscard]] static jute::heap call(jute::view fn) {
   jute::view args[max_args];
 
   unsigned i = 1;
@@ -281,7 +282,7 @@ static void call(jute::view fn, roll_t roll) {
 
   if (!memory::has(fn)) {
     errln("warn: missing definition of #<", fn, ">");
-    return;
+    return {};
   }
 
   // TODO: should we consider "residuals" here?
@@ -301,25 +302,27 @@ static void call(jute::view fn, roll_t roll) {
       buf[idx++] = c;
     }
   }
-  roll(buf, idx);
+  return jute::view { buf, idx };
 }
 
 static void run(unsigned mark, roll_t roll) {
   // TODO: case insensitive
 
+  jute::heap res {};
   auto fn = jute::view::unsafe(param_roll::at(mark));
   auto arg = after(fn);
-  if      (fn == "ad")  ad(arg, roll);
-  else if (fn == "cc")  cc(arg, roll);
+  if      (fn == "ad")  res = ad(arg);
+  else if (fn == "cc")  res = cc(arg);
   else if (fn == "ds")  ds(arg);
-  else if (fn == "eq")  eqn(arg, roll);
-  else if (fn == "eq?") eqq(arg, roll);
+  else if (fn == "eq")  res = eqn(arg);
+  else if (fn == "eq?") res = eqq(arg);
   else if (fn == "ps")  ps(arg);
   else if (fn == "ss")  ss(arg);
-  else if (fn.size())  call(fn, roll);
+  else if (fn.size())   res = call(fn);
   else assert(false && "trying to call an empty function");
 
   param_roll::truncate_at(mark);
+  if (res.size() != 0) roll(res.begin(), res.size());
 }
 
 static void parser();
