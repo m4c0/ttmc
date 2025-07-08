@@ -195,9 +195,9 @@ static void ad(jute::view a, roll_t roll) {
     p++;
     n /= 10;
   }
-  auto e = p + 1;
+  auto e = p;
   while (ab > 0) {
-    *p-- = '0' + (ab % 10);
+    *--p = '0' + (ab % 10);
     ab /= 10;
   }
   roll(buf, e - buf);
