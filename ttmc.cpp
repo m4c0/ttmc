@@ -178,6 +178,31 @@ static constexpr int str_to_i32(jute::view v) {
 static_assert(str_to_i32("-23") == -23);
 static_assert(str_to_i32("948") == 948);
 
+static void ad(jute::view a, roll_t roll) {
+  auto b = after(a);
+
+  auto ab = str_to_i32(a) + str_to_i32(b);
+  if (ab == 0) return roll("0", 1);
+
+  char buf[128] {};
+  auto p = buf;
+  if (ab < 0) {
+    *p++ = '-';
+    ab = -ab;
+  }
+  auto n = ab;
+  while (n > 0) {
+    p++;
+    n /= 10;
+  }
+  auto e = p + 1;
+  while (ab > 0) {
+    *p-- = '0' + (ab % 10);
+    ab /= 10;
+  }
+  roll(buf, e - buf);
+}
+
 static void cc(jute::view key, roll_t roll) {
   if (!memory::has(key)) return;
 
@@ -284,7 +309,8 @@ static void run(unsigned mark, roll_t roll) {
 
   auto fn = jute::view::unsafe(param_roll::at(mark));
   auto arg = after(fn);
-  if      (fn == "cc")  cc(arg, roll);
+  if      (fn == "ad")  ad(arg, roll);
+  else if (fn == "cc")  cc(arg, roll);
   else if (fn == "ds")  ds(arg);
   else if (fn == "eq")  eqn(arg, roll);
   else if (fn == "eq?") eqq(arg, roll);
