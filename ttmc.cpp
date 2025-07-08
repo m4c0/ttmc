@@ -180,10 +180,10 @@ static constexpr int str_to_i32(jute::view v) {
 static_assert(str_to_i32("-23") == -23);
 static_assert(str_to_i32("948") == 948);
 
-[[nodiscard]] static jute::heap ad(jute::view a) {
+[[nodiscard]] static jute::heap numeric_binop(jute::view a, int (*op)(int, int)) {
   auto b = after(a);
 
-  auto ab = str_to_i32(a) + str_to_i32(b);
+  auto ab = op(str_to_i32(a), str_to_i32(b));
   if (ab == 0) return "0"_hs;
 
   char buf[128] {};
@@ -205,6 +205,10 @@ static_assert(str_to_i32("948") == 948);
   }
 
   return jute::view { buf, len };
+}
+
+[[nodiscard]] static jute::heap ad(jute::view a) {
+  return numeric_binop(a, [](auto a, auto b) { return a + b; });
 }
 
 [[nodiscard]] static jute::heap cc(jute::view key) {
@@ -270,6 +274,10 @@ static void ss(jute::view key) {
 
 static void ps(jute::view arg) { errln(arg); }
 
+[[nodiscard]] static jute::heap su(jute::view a) {
+  return numeric_binop(a, [](auto a, auto b) { return a - b; });
+}
+
 [[nodiscard]] static jute::heap call(jute::view fn) {
   jute::view args[max_args];
 
@@ -318,6 +326,7 @@ static void run(unsigned mark, roll_t roll) {
   else if (fn == "eq?") res = eqq(arg);
   else if (fn == "ps")  ps(arg);
   else if (fn == "ss")  ss(arg);
+  else if (fn == "su")  res = su(arg);
   else if (fn.size())   res = call(fn);
   else assert(false && "trying to call an empty function");
 
