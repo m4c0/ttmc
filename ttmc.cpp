@@ -99,9 +99,9 @@ namespace ttmc::storage_roll {
   char g_data[buf_size] {};
   unsigned g_ptr = 0;
 
-  void push(char c) {
-    assert(g_ptr < buf_size && "storage roll overflow");
-    g_data[g_ptr++] = c;
+  void push(const char * c, unsigned n) {
+    assert(g_ptr + n < buf_size && "storage roll overflow");
+    for (auto i = 0; i < n; i++) g_data[g_ptr++] = c[i];
   }
 
   void dump() {
@@ -334,7 +334,7 @@ static void parse_at() {
   }
 }
 
-static void parse_dpound() {
+static void parse_dpound(roll_t roll) {
   switch (char c = input_roll::getc()) {
     case '<': {
       auto mark = param_roll::mark();
@@ -342,10 +342,9 @@ static void parse_dpound() {
       if (!input_roll::empty()) run(mark, param_roll::push);
       break;
     }
-    default: 
-      param_roll::push('#');
-      param_roll::push('#');
-      param_roll::push(c);
+    default:
+      roll("##", 2);
+      input_roll::push(&c, 1);
       break;
   }
 }
@@ -372,10 +371,10 @@ static void parse_lt() {
   }
 }
 
-static void parse_pound() {
+static void parse_pound(roll_t roll) {
   switch (auto c = input_roll::getc()) {
     case '#':
-      parse_dpound();
+      parse_dpound(roll);
       break;
     case '<': {
       auto mark = param_roll::mark();
@@ -383,9 +382,9 @@ static void parse_pound() {
       if (!input_roll::empty()) run(mark, input_roll::push);
       break;
     }
-    default: 
-      param_roll::push('#');
-      param_roll::push(c);
+    default:
+      roll("#", 1);
+      input_roll::push(&c, 1);
       break;
   }
 };
@@ -396,7 +395,7 @@ static void parser() {
       case 0:    break;
       case '\n': break;
       case '@': parse_at(); break;
-      case '#': parse_pound(); break;
+      case '#': parse_pound(param_roll::push); break;
       case '<': parse_lt(); break;
       case ';': param_roll::push('\0'); break;
       case '>': param_roll::push('\0'); return;
@@ -412,8 +411,8 @@ static void parse_file(const char * name) {
   while (!input_roll::empty()) {
     switch (auto c = input_roll::getc()) {
       case 0:   break;
-      case '#': parse_pound(); break;
-      default:  storage_roll::push(c); break;
+      case '#': parse_pound(storage_roll::push); break;
+      default:  storage_roll::push(&c, 1); break;
     }
   }
 
