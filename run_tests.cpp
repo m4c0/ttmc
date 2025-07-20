@@ -20,7 +20,8 @@ int main() {
     try {
       putln("[run  ] ", ttm);
       ttmc::printer = [&](auto msg) { result = result + msg + "\n"; };
-      result = result + "Output:\n" + ttmc::parse(jojo::read_cstr(ttm));
+      auto output = ttmc::parse(jojo::read_cstr(ttm));
+      result = result + "Output:\n" + output;
 
       if (!mtime::of(txt.begin())) continue;
       auto expected = jojo::read_cstr(txt);
