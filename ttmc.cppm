@@ -1,7 +1,6 @@
 export module ttmc;
 import hai;
 import hashley;
-import jojo;
 import jute;
 import print;
 
@@ -10,6 +9,8 @@ using namespace jute::literals;
 static constexpr const auto max_args = 7;
 
 namespace ttmc {
+  export hai::fn<void, jute::view> printer = [](auto m) { err(m); };
+
   static void assert_impl(const char * msg, const char * file, int line) {
     die(file, ":", line, ": ", msg);
   }
@@ -270,7 +271,7 @@ static void ss(jute::view key) {
   val.size = j;
 }
 
-static void ps(jute::view arg) { errln(arg); }
+static void ps(jute::view arg) { ttmc::printer(arg); }
 
 [[nodiscard]] static jute::heap su(jute::view a) {
   return numeric_binop(a, [](auto a, auto b) { return a - b; });

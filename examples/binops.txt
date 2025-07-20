@@ -1,0 +1,7 @@
+Printer:
+Output:
+ok
+ok
+ok
+
+69
