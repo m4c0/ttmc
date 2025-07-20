@@ -31,6 +31,15 @@ namespace ttmc::input_roll {
 
   static node * g_head {};
 
+  static void clear() {
+    while (g_head) {
+      auto tmp = g_head;
+      g_head = g_head->next;
+      delete[] tmp->data;
+      delete tmp;
+    }
+  }
+
   static void push(const char * data, unsigned sz) {
     auto d = new char[sz] {};
     for (auto i = 0; i < sz; i++) d[i] = data[i];
@@ -71,6 +80,8 @@ namespace ttmc::param_roll {
   static char g_data[buf_size] {};
   static unsigned g_ptr = 0;
 
+  static void clear() { g_ptr = 0; }
+
   static void push(const char * c, unsigned sz) {
     assert(g_ptr + sz < buf_size && "parameter roll overflow");
     for (auto i = 0; i < sz; i++) g_data[g_ptr++] = *c++;
@@ -99,6 +110,8 @@ namespace ttmc::storage_roll {
   char g_data[buf_size] {};
   unsigned g_ptr = 0;
 
+  static void clear() { g_ptr = 0; }
+
   void push(const char * c, unsigned n) {
     assert(g_ptr + n < buf_size && "storage roll overflow");
     for (auto i = 0; i < n; i++) g_data[g_ptr++] = c[i];
@@ -110,6 +123,12 @@ namespace ttmc::storage_roll {
 
 namespace ttmc {
   using roll_t = void (*)(const char *, unsigned);
+
+  export void clear() {
+    input_roll::clear();
+    param_roll::clear();
+    storage_roll::clear();
+  }
 
   [[maybe_unused]] void dump_all() {
     putln("-=-=-=-=-=-=-=-=-=- Input Roll");
