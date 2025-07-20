@@ -1,5 +1,4 @@
-#pragma leco tool
-
+export module ttmc;
 import hai;
 import hashley;
 import jojo;
@@ -301,12 +300,14 @@ static void ps(jute::view arg) { errln(arg); }
     if (!c || c >= max_args) {
       if (idx >= sizeof(buf)) die("function name overflow");
       buf[idx++] = c;
+      assert(idx < 300);
       continue;
     }
     auto a = args[static_cast<int>(c)];
     for (auto c : a) {
       if (idx >= sizeof(buf)) die("function name overflow");
       buf[idx++] = c;
+      assert(idx < 300);
     }
   }
   return jute::view { buf, idx };
@@ -412,22 +413,18 @@ static void parser() {
   }
 }
 
-static jute::view parse(jute::view file) {
-  input_roll::push(file.begin(), file.size());
-
-  while (!input_roll::empty()) {
-    switch (auto c = input_roll::getc()) {
-      case 0:   break;
-      case '#': parse_pound(storage_roll::push); break;
-      default:  storage_roll::push(&c, 1); break;
+namespace ttmc {
+  export jute::view parse(jute::view file) {
+    input_roll::push(file.begin(), file.size());
+  
+    while (!input_roll::empty()) {
+      switch (auto c = input_roll::getc()) {
+        case 0:   break;
+        case '#': parse_pound(storage_roll::push); break;
+        default:  storage_roll::push(&c, 1); break;
+      }
     }
+  
+    return storage_roll::data();
   }
-
-  return storage_roll::data();
-}
-
-int main(int argc, char ** argv) try {
-  for (auto i = 1; i < argc; i++) putln(parse(jojo::read_cstr(jute::view::unsafe(argv[i]))));
-} catch (...) {
-  return 1;
 }
