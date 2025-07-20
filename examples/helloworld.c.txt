@@ -1,0 +1,6 @@
+Printer:
+#include <stdio.h>
+Output:
+int main() {
+  puts("hello world");
+}
