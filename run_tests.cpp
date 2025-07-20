@@ -1,8 +1,10 @@
 #pragma leco tool
 
+import jojo;
 import jute;
 import pprent;
 import print;
+import ttmc;
 
 int main() {
   for (auto f : pprent::list("examples")) {
@@ -11,7 +13,10 @@ int main() {
 
     auto ttm = ("examples/" + file).cstr();
     auto txt = (jute::view{ttm}.rsplit('.').before + ".txt").cstr();
-
-    putln(ttm, " ", txt);
+    try {
+      ttmc::parse(jojo::read_cstr(ttm));
+    } catch (...) {
+      putln("[erred] ", ttm);
+    }
   }
 }
