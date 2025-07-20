@@ -21,7 +21,14 @@ int main() {
       putln("[run  ] ", ttm);
       ttmc::printer = [&](auto msg) { result = result + msg + "\n"; };
       auto output = ttmc::parse(jojo::read_cstr(ttm));
-      result = result + "Output:\n" + output;
+
+      result = result + "Output:\n";
+      while (output.size()) {
+        // Ignore empty lines for test output brevity
+        auto [l, r] = output.split('\n');
+        if (l != "") result = result + l + "\n";
+        output = r;
+      }
 
       if (!mtime::of(txt.begin())) continue;
       auto expected = jojo::read_cstr(txt);
