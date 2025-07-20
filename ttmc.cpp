@@ -104,9 +104,8 @@ namespace ttmc::storage_roll {
     for (auto i = 0; i < n; i++) g_data[g_ptr++] = c[i];
   }
 
-  void dump() {
-    putln(jute::view { g_data, g_ptr });
-  }
+  auto data() { return jute::view { g_data, g_ptr }; }
+  void dump() { putln(data()); }
 }
 
 namespace ttmc {
@@ -413,8 +412,7 @@ static void parser() {
   }
 }
 
-static void parse_file(const char * name) {
-  auto file = jojo::read_cstr(jute::view::unsafe(name));
+static jute::view parse(jute::view file) {
   input_roll::push(file.begin(), file.size());
 
   while (!input_roll::empty()) {
@@ -425,11 +423,11 @@ static void parse_file(const char * name) {
     }
   }
 
-  storage_roll::dump();
+  return storage_roll::data();
 }
 
 int main(int argc, char ** argv) try {
-  for (auto i = 1; i < argc; i++) parse_file(argv[i]);
+  for (auto i = 1; i < argc; i++) putln(parse(jojo::read_cstr(jute::view::unsafe(argv[i]))));
 } catch (...) {
   return 1;
 }
