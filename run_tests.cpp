@@ -14,8 +14,6 @@ int main() {
     auto file = jute::view::unsafe(f);
     if (!file.ends_with(".ttm")) continue;
 
-    ttmc::clear();
-
     auto ttm = ("examples/" + file).cstr();
     auto txt = (jute::view{ttm}.rsplit('.').before + ".txt").cstr();
     jute::heap result = "Printer:\n"_hs;

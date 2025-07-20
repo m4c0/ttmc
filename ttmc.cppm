@@ -124,7 +124,7 @@ namespace ttmc::storage_roll {
 namespace ttmc {
   using roll_t = void (*)(const char *, unsigned);
 
-  export void clear() {
+  void clear() {
     input_roll::clear();
     param_roll::clear();
     storage_roll::clear();
@@ -435,6 +435,8 @@ static void parser() {
 
 namespace ttmc {
   export jute::view parse(jute::view file) {
+    clear();
+
     input_roll::push(file.begin(), file.size());
   
     while (!input_roll::empty()) {
