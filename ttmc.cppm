@@ -326,7 +326,7 @@ static void parse_dpound(roll_t roll) {
     }
     default:
       roll("##", 2);
-      input_roll::push(&c, 1);
+      roll(&c, 1);
       break;
   }
 }
@@ -366,7 +366,7 @@ static void parse_pound(roll_t roll) {
     }
     default:
       roll("#", 1);
-      input_roll::push(&c, 1);
+      roll(&c, 1);
       break;
   }
 };
