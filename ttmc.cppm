@@ -17,7 +17,7 @@ namespace ttmc {
 }
 
 #define assert(X) do {               \
-  if (!(X)) ttmc::assert_impl("assertion failed: " #X " around ", __FILE__, __LINE__); \
+  if (!(X)) ttmc::assert_impl("assertion failed: " #X, __FILE__, __LINE__); \
 } while (0)
 
 namespace ttmc::input_roll {
