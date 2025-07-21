@@ -49,6 +49,9 @@ namespace ttmc::input_roll {
       .next = g_head,
     };
   }
+  static void push(jute::view data) {
+    push(data.begin(), data.size());
+  }
 
   static char getc() {
     if (!g_head) return 0;
@@ -87,6 +90,7 @@ namespace ttmc::param_roll {
     assert(g_ptr + sz < buf_size && "parameter roll overflow");
     for (auto i = 0; i < sz; i++) g_data[g_ptr++] = *c++;
   }
+  static void push(jute::view v) { push(v.begin(), v.size()); }
   static void push(char c) { push(&c, 1); }
 
   static auto at(unsigned m) {
@@ -282,7 +286,7 @@ static void ps(jute::view arg) { ttmc::printer(arg); }
   return jute::view { buf, idx };
 }
 
-static void run(unsigned mark, roll_t roll) {
+[[nodiscard]] static jute::heap run(unsigned mark) {
   // TODO: case insensitive
 
   jute::heap res {};
@@ -300,7 +304,7 @@ static void run(unsigned mark, roll_t roll) {
   else assert(false && "trying to call an empty function");
 
   param_roll::truncate_at(mark);
-  if (res.size() != 0) roll(res.begin(), res.size());
+  return res;
 }
 
 static void parser();
@@ -317,7 +321,7 @@ static void parse_dpound(roll_t roll) {
     case '<': {
       auto mark = param_roll::mark();
       parser();
-      if (!input_roll::empty()) run(mark, param_roll::push);
+      if (!input_roll::empty()) param_roll::push(*run(mark));
       break;
     }
     default:
@@ -357,7 +361,7 @@ static void parse_pound(roll_t roll) {
     case '<': {
       auto mark = param_roll::mark();
       parser();
-      if (!input_roll::empty()) run(mark, input_roll::push);
+      if (!input_roll::empty()) input_roll::push(*run(mark));
       break;
     }
     default:
