@@ -318,16 +318,14 @@ static void ps(jute::view arg) { ttmc::printer(arg); }
   for (auto i = 0; i < val.size; i++) {
     auto c = val.data[i];
     if (!c || c >= max_args) {
-      if (idx >= sizeof(buf)) die("function name overflow");
+      if (idx >= sizeof(buf)) die("overflow from ", fn, ": ", jute::view{buf});
       buf[idx++] = c;
-      assert(idx < 300);
       continue;
     }
     auto a = args[static_cast<int>(c)];
     for (auto c : a) {
-      if (idx >= sizeof(buf)) die("function name overflow");
+      if (idx >= sizeof(buf)) die("overflow from ", fn, ": ", jute::view{buf});
       buf[idx++] = c;
-      assert(idx < 300);
     }
   }
   return jute::view { buf, idx };
