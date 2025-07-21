@@ -26,6 +26,8 @@ public:
     m_view = r;
     return l;
   }
+
+  constexpr auto rest() { return m_view; }
 };
 
 static_assert([] {
