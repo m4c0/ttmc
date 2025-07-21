@@ -1,5 +1,6 @@
 export module ttmc;
 import :inputroll;
+import :paramroll;
 import :memory;
 import hai;
 import hashley;
