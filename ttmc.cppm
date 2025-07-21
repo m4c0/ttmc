@@ -247,7 +247,7 @@ static void parser(state * s) {
       case '#': parse_pound(s); break;
       case '<': parse_lt(s); break;
       case ';': s->param.push('\0'); break;
-      case '>': s->param.push('\0'); return;
+      case '>': return;
       default:  s->param.push(c); break;
     }
   }
