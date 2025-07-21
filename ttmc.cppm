@@ -90,7 +90,7 @@ static void ss(state * s) {
   //       i.e. #<ss;X;IS;THIS> matches THIS with higher precedence
   // TODO: introduce the "residual pointer" (note: keep "inital pointer")
   auto key = s->param.next();
-  auto val = s->param.next();
+  auto val = s->mem->get(key);
   hai::varray<char> res { static_cast<unsigned>(val.size()) };
   for (auto i = 0; i < val.size(); i++) {
     auto ppr = s->param;
