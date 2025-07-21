@@ -158,23 +158,10 @@ static jute::view after(jute::view v) {
   return jute::view::unsafe(e);
 }
 
-static constexpr int str_to_i32(jute::view v) {
-  int sign = (v.size() && v[0] == '-') ? -1 : 1;
-  if (sign == -1) v = v.subview(1).after;
-  int res = 0;
-  for (auto c : v) {
-    if (c < '0' || c > '9') break;
-    res = res * 10 + (c - '0');
-  }
-  return res * sign;
-}
-static_assert(str_to_i32("-23") == -23);
-static_assert(str_to_i32("948") == 948);
-
 [[nodiscard]] static jute::heap numeric_binop(jute::view a, int (*op)(int, int)) {
   auto b = after(a);
 
-  auto ab = op(str_to_i32(a), str_to_i32(b));
+  auto ab = op(jute::to_i32(a), jute::to_i32(b));
   if (ab == 0) return "0"_hs;
 
   char buf[128] {};
@@ -215,8 +202,8 @@ static void ds(jute::view key) {
   auto s3 = after(s2);
   auto s4 = after(s3);
 
-  auto n1 = str_to_i32(s1);
-  auto n2 = str_to_i32(s2);
+  auto n1 = jute::to_i32(s1);
+  auto n2 = jute::to_i32(s2);
   return n1 == n2 ? s3 : s4;
 }
 
