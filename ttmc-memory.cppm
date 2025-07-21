@@ -3,7 +3,11 @@ import hai;
 import hashley;
 import jute;
 
-export class memory {
+namespace ttmc {
+  export class memory;
+}
+
+class ttmc::memory {
   struct node {
     hai::array<char> data {};
     unsigned r_pos = 0;
