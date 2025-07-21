@@ -1,4 +1,5 @@
 export module ttmc:paramroll;
+import :roll;
 import hai;
 import jute;
 
@@ -6,12 +7,12 @@ namespace ttmc {
   class paramroll;
 }
 
-class ttmc::paramroll {
+class ttmc::paramroll : public ttmc::roll {
   jute::heap m_data {}; 
   jute::view m_view {};
 
 public:
-  constexpr void push(char c) {
+  constexpr void push(char c) override {
     m_data = m_data + c;
     m_view = *m_data;
   }
