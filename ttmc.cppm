@@ -146,10 +146,6 @@ namespace ttmc {
   }
 }
 
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-// Anything below requires some API cleanup
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 using namespace ttmc;
 
 static memory g_mem {};
