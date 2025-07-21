@@ -24,88 +24,11 @@ namespace ttmc {
   if (!(X)) ttmc::assert_impl("assertion failed: " #X, __FILE__, __LINE__); \
 } while (0)
 
-namespace ttmc::input_roll {
-  static inputroll g_in {};
-
-  static void push(const char * data, unsigned sz) {
-    g_in.push(jute::view { data, sz });
-  }
-  static void push(jute::view data) {
-    g_in.push(data);
-  }
-
-  static auto empty() { return g_in.empty(); }
-  static auto getc() { return g_in.getc(); }
-};
-
-namespace ttmc::param_roll {
-  static constexpr const auto buf_size = 102400;
-  static char g_data[buf_size] {};
-  static unsigned g_ptr = 0;
-
-  static void clear() { g_ptr = 0; }
-
-  static void push(const char * c, unsigned sz) {
-    assert(g_ptr + sz < buf_size && "parameter roll overflow");
-    for (auto i = 0; i < sz; i++) g_data[g_ptr++] = *c++;
-  }
-  static void push(jute::view v) { push(v.begin(), v.size()); }
-  static void push(char c) { push(&c, 1); }
-
-  static auto at(unsigned m) {
-    assert(m < buf_size && "parameter roll out-of-bounds access");
-    return &g_data[m];
-  }
-  static auto end() { return &g_data[g_ptr]; }
-
-  static auto mark() { return g_ptr; }
-
-  static void truncate_at(unsigned m) {
-    assert(m < buf_size && "parameter roll out-of-bounds truncation");
-    assert(m <= g_ptr && "parameter roll truncation beyond read point");
-    g_ptr = m;
-  }
-};
-
-namespace ttmc::storage_roll {
-  static constexpr const auto buf_size = 102400;
-  char g_data[buf_size] {};
-  unsigned g_ptr = 0;
-
-  static void clear() { g_ptr = 0; }
-
-  static void push(const char * c, unsigned n) {
-    assert(g_ptr + n < buf_size && "storage roll overflow");
-    for (auto i = 0; i < n; i++) g_data[g_ptr++] = c[i];
-  }
-
-  static auto data() { return jute::view { g_data, g_ptr }; }
-}
-
-namespace ttmc {
-  using roll_t = void (*)(const char *, unsigned);
-
-  void clear() {
-    input_roll::g_in = {};
-    param_roll::clear();
-    storage_roll::clear();
-  }
-}
-
 using namespace ttmc;
 
-static memory g_mem {};
-
-static jute::view after(jute::view v) {
-  if (!v.begin()) return {};
-
-  auto e = v.end() + 1;
-  if (e >= param_roll::end()) return {};
-  return jute::view::unsafe(e);
-}
-
-[[nodiscard]] static jute::heap numeric_binop(jute::view a, int (*op)(int, int)) {
-  auto b = after(a);
+[[nodiscard]] static jute::heap numeric_binop(state * s, int (*op)(int, int)) {
+  auto a = s->param.next();
+  auto b = s->param.next();
 
   auto ab = op(jute::to_i32(a), jute::to_i32(b));
   if (ab == 0) return "0"_hs;
@@ -131,43 +54,47 @@ static jute::view after(jute::view v) {
   return jute::view { buf, len };
 }
 
-[[nodiscard]] static jute::heap ad(jute::view a) {
-  return numeric_binop(a, [](auto a, auto b) { return a + b; });
+[[nodiscard]] static jute::heap ad(state * s) {
+  return numeric_binop(s, [](auto a, auto b) { return a + b; });
 }
 
-[[nodiscard]] static jute::heap cc(jute::view key) {
-  return g_mem.consume(key, 1);
+[[nodiscard]] static jute::heap cc(state * s) {
+  return s->mem->consume(s->param.next(), 1);
 }
 
-static void ds(jute::view key) {
-  g_mem.set(key, after(key));
+static void ds(state * s) {
+  s->mem->set(s->param.next(), s->param.next());
 }
 
-[[nodiscard]] static jute::heap eqn(jute::view s1) {
-  auto s2 = after(s1);
-  auto s3 = after(s2);
-  auto s4 = after(s3);
+[[nodiscard]] static jute::heap eqn(state * s) {
+  auto s1 = s->param.next();
+  auto s2 = s->param.next();
+  auto s3 = s->param.next();
+  auto s4 = s->param.next();
 
   auto n1 = jute::to_i32(s1);
   auto n2 = jute::to_i32(s2);
   return n1 == n2 ? s3 : s4;
 }
 
-[[nodiscard]] static jute::heap eqq(jute::view s1) {
-  auto s2 = after(s1);
-  auto s3 = after(s2);
-  auto s4 = after(s3);
+[[nodiscard]] static jute::heap eqq(state * s) {
+  auto s1 = s->param.next();
+  auto s2 = s->param.next();
+  auto s3 = s->param.next();
+  auto s4 = s->param.next();
   return s1 == s2 ? s3 : s4;
 }
 
-static void ss(jute::view key) {
+static void ss(state * s) {
   // TODO: support for substring priority by length
   //       i.e. #<ss;X;IS;THIS> matches THIS with higher precedence
   // TODO: introduce the "residual pointer" (note: keep "inital pointer")
-  auto val = g_mem.get(key);
+  auto key = s->param.next();
+  auto val = s->param.next();
   hai::varray<char> res { static_cast<unsigned>(val.size()) };
   for (auto i = 0; i < val.size(); i++) {
-    auto arg = after(key);
+    auto ppr = s->param;
+    auto arg = ppr.next();
     // TODO: start from the number of existing parameters
     //       i.e. #<ss;X;A;B>#<ss;X;C> is the same as #<ss;X;A;B;C>
     char idx = 1;
@@ -175,7 +102,7 @@ static void ss(jute::view key) {
     while (arg.data()) {
       auto v = val.subview(i, arg.size()).middle;
       if (v != arg) {
-        arg = after(arg);
+        arg = ppr.next();
         idx++;
         assert(idx < max_args && "too many arguments for ss");
       } else {
@@ -186,26 +113,26 @@ static void ss(jute::view key) {
     }
     res.push_back(c);
   }
-  g_mem.set(key, jute::view { res.begin(), res.size() });
+  s->mem->set(key, jute::view { res.begin(), res.size() });
 }
 
-static void ps(jute::view arg) { ttmc::printer(arg); }
+static void ps(state * s) { ttmc::printer(s->param.next()); }
 
-[[nodiscard]] static jute::heap su(jute::view a) {
-  return numeric_binop(a, [](auto a, auto b) { return a - b; });
+[[nodiscard]] static jute::heap su(state * s) {
+  return numeric_binop(s, [](auto a, auto b) { return a - b; });
 }
 
-[[nodiscard]] static jute::heap call(jute::view fn) {
+[[nodiscard]] static jute::heap call(jute::view fn, state * s) {
   jute::view args[max_args];
 
   unsigned i = 1;
-  auto arg = after(fn);
+  auto arg = s->param.next();
   while (arg.begin()) {
     args[i++] = arg;
-    arg = after(arg);
+    arg = s->param.next();
   }
 
-  const auto val = g_mem.get(fn);
+  const auto val = s->mem->get(fn);
   if (val == "") {
     errln("warn: missing definition of #<", fn, ">");
     return {};
@@ -228,121 +155,123 @@ static void ps(jute::view arg) { ttmc::printer(arg); }
   return jute::view { buf, idx };
 }
 
-[[nodiscard]] static jute::heap run(unsigned mark) {
+[[nodiscard]] static jute::heap run(state * s) {
   // TODO: case insensitive
 
-  jute::heap res {};
-  auto fn = jute::view::unsafe(param_roll::at(mark));
-  auto arg = after(fn);
-  if      (fn == "ad")  res = ad(arg);
-  else if (fn == "cc")  res = cc(arg);
-  else if (fn == "ds")  ds(arg);
-  else if (fn == "eq")  res = eqn(arg);
-  else if (fn == "eq?") res = eqq(arg);
-  else if (fn == "ps")  ps(arg);
-  else if (fn == "ss")  ss(arg);
-  else if (fn == "su")  res = su(arg);
-  else if (fn.size())   res = call(fn);
+  auto fn = s->param.next();
+  if      (fn == "ad")  return ad(s);
+  else if (fn == "cc")  return cc(s);
+  else if (fn == "ds")  ds(s);
+  else if (fn == "eq")  return eqn(s);
+  else if (fn == "eq?") return eqq(s);
+  else if (fn == "ps")  ps(s);
+  else if (fn == "ss")  ss(s);
+  else if (fn == "su")  return su(s);
+  else if (fn.size())   return call(fn, s);
   else assert(false && "trying to call an empty function");
 
-  param_roll::truncate_at(mark);
-  return res;
+  return {};
 }
 
-static void parser();
+static void parser(state * s);
 
-static void parse_at() {
-  switch (char c = input_roll::getc()) {
+static void parse_at(state * s) {
+  switch (char c = s->input->getc()) {
     case 0: break;
-    default: param_roll::push(c); break;
+    default: s->param.push(c); break;
   }
 }
 
-static void parse_dpound(roll_t roll) {
-  switch (char c = input_roll::getc()) {
+static void parse_dpound(state * s) {
+  switch (char c = s->input->getc()) {
     case '<': {
-      auto mark = param_roll::mark();
-      parser();
-      if (!input_roll::empty()) param_roll::push(*run(mark));
+      state s2 = extend(s);
+      parser(&s2);
+      if (!s->input->empty()) s->param.push(*run(&s2));
       break;
     }
     default:
-      roll("##", 2);
-      roll(&c, 1);
+      s->param.push('#');
+      s->param.push('#');
+      s->param.push(c);
       break;
   }
 }
 
-static void parse_lt() {
-  while (!input_roll::empty()) {
-    switch (auto c = input_roll::getc()) {
+static void parse_lt(state * s) {
+  while (!s->input->empty()) {
+    switch (auto c = s->input->getc()) {
       case 0:
         break;
       case '@':
-        parse_at();
+        parse_at(s);
         break;
       case '>':
         return;
       case '<': 
-        param_roll::push('<');
-        parse_lt();
-        if (!input_roll::empty()) param_roll::push('>');
+        s->param.push('<');
+        parse_lt(s);
+        if (!s->input->empty()) s->param.push('>');
         break;
       default:
-        param_roll::push(c);
+        s->param.push(c);
         break;
     }
   }
 }
 
-static void parse_pound(roll_t roll) {
-  switch (auto c = input_roll::getc()) {
+static void parse_pound(state * s) {
+  switch (auto c = s->input->getc()) {
     case '#':
-      parse_dpound(roll);
+      parse_dpound(s);
       break;
     case '<': {
-      auto mark = param_roll::mark();
-      parser();
-      if (!input_roll::empty()) input_roll::push(*run(mark));
+      state s2 = extend(s);
+      parser(&s2);
+      if (!s->input->empty()) s->input->push(*run(&s2));
       break;
     }
     default:
-      roll("#", 1);
-      roll(&c, 1);
+      s->param.push('#');
+      s->param.push(c);
       break;
   }
 };
 
-static void parser() {
-  while (!input_roll::empty()) {
-    switch (auto c = input_roll::getc()) {
+static void parser(state * s) {
+  while (!s->input->empty()) {
+    switch (auto c = s->input->getc()) {
       case 0:    break;
       case '\n': break;
-      case '@': parse_at(); break;
-      case '#': parse_pound(param_roll::push); break;
-      case '<': parse_lt(); break;
-      case ';': param_roll::push('\0'); break;
-      case '>': param_roll::push('\0'); return;
-      default:  param_roll::push(c); break;
+      case '@': parse_at(s); break;
+      case '#': parse_pound(s); break;
+      case '<': parse_lt(s); break;
+      case ';': s->param.push('\0'); break;
+      case '>': s->param.push('\0'); return;
+      default:  s->param.push(c); break;
     }
   }
 }
 
 namespace ttmc {
-  export jute::view parse(jute::view file) {
-    clear();
-    g_mem = {};
+  export jute::heap parse(jute::view file) {
+    memory m {};
+    inputroll in {};
+    in.push(file);
 
-    input_roll::push(file.begin(), file.size());
-  
-    while (!input_roll::empty()) {
-      switch (auto c = input_roll::getc()) {
+    state s {
+      .mem = &m,
+      .input = &in,
+    };
+
+    while (!in.empty()) {
+      switch (auto c = in.getc()) {
         case 0:   break;
-        case '#': parse_pound(storage_roll::push); break;
-        default:  storage_roll::push(&c, 1); break;
+        case '#': parse_pound(&s); break;
+        default:  s.param.push(c); break;
       }
     }
   
-    return storage_roll::data();
+    return s.param.rest();
   }
 }

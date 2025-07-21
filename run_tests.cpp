@@ -23,11 +23,12 @@ int main() {
       auto output = ttmc::parse(jojo::read_cstr(ttm));
 
       result = result + "Output:\n";
-      while (output.size()) {
+      auto rest = *output;
+      while (rest.size()) {
         // Ignore empty lines for test output brevity
-        auto [l, r] = output.split('\n');
+        auto [l, r] = rest.split('\n');
         if (l != "") result = result + l + "\n";
-        output = r;
+        rest = r;
       }
 
       if (!mtime::of(txt.begin())) continue;
