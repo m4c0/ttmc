@@ -1,4 +1,5 @@
 export module ttmc;
+import :memory;
 import hai;
 import hashley;
 import jute;
@@ -145,37 +146,9 @@ namespace ttmc {
 // Anything below requires some API cleanup
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-namespace memory {
-  struct node {
-    char * data;
-    unsigned size;
-    unsigned r_pos = 0;
-  };
-  static hashley::fin<node> g_data { 127 }; 
-
-  static bool has(jute::view key) {
-    return g_data.has(key);
-  }
-
-  static node & get(jute::view key) {
-    assert(has(key) && "trying to fetch non-existant key");
-    return g_data[key];
-  }
-
-  static void set(jute::view key, const char * val, unsigned sz) {
-    auto & n = g_data[key];
-    if (n.data) delete[] n.data;
-
-    auto data = new char[sz];
-    for (auto i = 0; i < sz; i++) data[i] = val[i];
-
-    n.data = data;
-    n.size = sz;
-    n.r_pos = 0;
-  }
-}
-
 using namespace ttmc;
+
+static memory g_mem {};
 
 static jute::view after(jute::view v) {
   if (!v.begin()) return {};
@@ -230,17 +203,11 @@ static_assert(str_to_i32("948") == 948);
 }
 
 [[nodiscard]] static jute::heap cc(jute::view key) {
-  if (!memory::has(key)) return {};
-
-  auto & val = memory::get(key);
-  if (val.r_pos >= val.size) return {};
-
-  return jute::view { &val.data[val.r_pos++], 1 };
+  return g_mem.consume(key, 1);
 }
 
 static void ds(jute::view key) {
-  auto val = after(key);
-  memory::set(key, val.begin(), val.size());
+  g_mem.set(key, after(key));
 }
 
 [[nodiscard]] static jute::heap eqn(jute::view s1) {
@@ -264,16 +231,16 @@ static void ss(jute::view key) {
   // TODO: support for substring priority by length
   //       i.e. #<ss;X;IS;THIS> matches THIS with higher precedence
   // TODO: introduce the "residual pointer" (note: keep "inital pointer")
-  auto & val = memory::get(key);
-  auto j = 0;
-  for (auto i = 0; val.data[i]; i++, j++) {
+  auto val = g_mem.get(key);
+  hai::varray<char> res { static_cast<unsigned>(val.size()) };
+  for (auto i = 0; i < val.size(); i++) {
     auto arg = after(key);
     // TODO: start from the number of existing parameters
     //       i.e. #<ss;X;A;B>#<ss;X;C> is the same as #<ss;X;A;B;C>
     char idx = 1;
-    char c = val.data[i];
+    char c = val[i];
     while (arg.data()) {
-      auto v = jute::view::unsafe(&val.data[i]).subview(arg.size()).before;
+      auto v = val.subview(i, arg.size()).middle;
       if (v != arg) {
         arg = after(arg);
         idx++;
@@ -284,10 +251,9 @@ static void ss(jute::view key) {
         break;
       }
     }
-    val.data[j] = c;
+    res.push_back(c);
   }
-  val.data[j] = 0;
-  val.size = j;
+  g_mem.set(key, jute::view { res.begin(), res.size() });
 }
 
 static void ps(jute::view arg) { ttmc::printer(arg); }
@@ -306,17 +272,15 @@ static void ps(jute::view arg) { ttmc::printer(arg); }
     arg = after(arg);
   }
 
-  if (!memory::has(fn)) {
+  const auto val = g_mem.get(fn);
+  if (val == "") {
     errln("warn: missing definition of #<", fn, ">");
     return {};
   }
 
-  // TODO: should we consider "residuals" here?
-  const auto val = memory::get(fn);
   char buf[300] {};
   unsigned idx = 0;
-  for (auto i = 0; i < val.size; i++) {
-    auto c = val.data[i];
+  for (auto c : val) {
     if (!c || c >= max_args) {
       if (idx >= sizeof(buf)) die("overflow from ", fn, ": ", jute::view{buf});
       buf[idx++] = c;
@@ -434,6 +398,7 @@ static void parser() {
 namespace ttmc {
   export jute::view parse(jute::view file) {
     clear();
+    g_mem = {};
 
     input_roll::push(file.begin(), file.size());
   
