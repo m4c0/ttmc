@@ -20,7 +20,7 @@ public:
     if (!m_data.has(key)) return {};
 
     auto & val = m_data[key];
-    if (n + val.r_pos >= val.data.size()) return {};
+    if (n + val.r_pos > val.data.size()) return {};
 
     jute::view res { val.data.begin() + val.r_pos, n };
     val.r_pos += n;
@@ -30,8 +30,7 @@ public:
   constexpr jute::view get(jute::view key) {
     if (!m_data.has(key)) return {};
     auto & v = m_data[key];
-    // TODO: consider residual pointer?
-    return jute::view { v.data.begin(), v.data.size() };
+    return jute::view { v.data.begin() + v.r_pos, v.data.size() - v.r_pos };
   }
 
   constexpr void set(jute::view key, jute::view data) {
@@ -40,3 +39,18 @@ public:
     for (auto i = 0; i < data.size(); i++) n.data[i] = data[i];
   }
 };
+
+static_assert([] {
+  ttmc::memory m {};
+  m.set("X", "OK");
+
+  if (m.consume("X", 1) != "O") throw 0;
+  if (m.get("X") != "K") throw 0;
+ 
+  if (m.consume("X", 1) != "K") throw 0;
+  if (m.get("X") != "") throw 0;
+ 
+  if (m.consume("X", 1) != "") throw 0;
+
+  return true;
+}());
