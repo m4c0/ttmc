@@ -4,7 +4,7 @@ import hashley;
 import jute;
 
 namespace ttmc {
-  export class memory;
+  class memory;
 }
 
 class ttmc::memory {

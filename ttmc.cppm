@@ -1,4 +1,5 @@
 export module ttmc;
+import :inputroll;
 import :memory;
 import hai;
 import hashley;
@@ -22,61 +23,17 @@ namespace ttmc {
 } while (0)
 
 namespace ttmc::input_roll {
-  struct node;
-
-  struct node {
-    const char * data;
-    unsigned rpos = 0;
-    node * next {};
-  };
-
-  static node * g_head {};
-
-  static void clear() {
-    while (g_head) {
-      auto tmp = g_head;
-      g_head = g_head->next;
-      delete[] tmp->data;
-      delete tmp;
-    }
-  }
+  static inputroll g_in {};
 
   static void push(const char * data, unsigned sz) {
-    auto d = new char[sz] {};
-    for (auto i = 0; i < sz; i++) d[i] = data[i];
-    g_head = new node {
-      .data = d,
-      .next = g_head,
-    };
+    g_in.push(jute::view { data, sz });
   }
   static void push(jute::view data) {
-    push(data.begin(), data.size());
+    g_in.push(data);
   }
 
-  static char getc() {
-    if (!g_head) return 0;
-
-    char c = g_head->data[g_head->rpos++];
-    if (c != 0) return c;
-
-    auto tmp = g_head;
-    g_head = g_head->next;
-    delete[] tmp->data;
-    delete tmp;
-
-    return getc();
-  }
-
-  static bool empty() { return !g_head; }
-
-  static void dump() {
-    auto * n = &*g_head;
-    while (n) {
-      put(&n->data[n->rpos]);
-      n = &*(n->next);
-    }
-    putln();
-  }
+  static auto empty() { return g_in.empty(); }
+  static auto getc() { return g_in.getc(); }
 };
 
 namespace ttmc::param_roll {
@@ -106,8 +63,6 @@ namespace ttmc::param_roll {
     assert(m <= g_ptr && "parameter roll truncation beyond read point");
     g_ptr = m;
   }
-
-  static void dump() { putln(jute::view { g_data, g_ptr }); }
 };
 
 namespace ttmc::storage_roll {
@@ -117,32 +72,21 @@ namespace ttmc::storage_roll {
 
   static void clear() { g_ptr = 0; }
 
-  void push(const char * c, unsigned n) {
+  static void push(const char * c, unsigned n) {
     assert(g_ptr + n < buf_size && "storage roll overflow");
     for (auto i = 0; i < n; i++) g_data[g_ptr++] = c[i];
   }
 
-  auto data() { return jute::view { g_data, g_ptr }; }
-  void dump() { putln(data()); }
+  static auto data() { return jute::view { g_data, g_ptr }; }
 }
 
 namespace ttmc {
   using roll_t = void (*)(const char *, unsigned);
 
   void clear() {
-    input_roll::clear();
+    input_roll::g_in = {};
     param_roll::clear();
     storage_roll::clear();
-  }
-
-  [[maybe_unused]] void dump_all() {
-    putln("-=-=-=-=-=-=-=-=-=- Input Roll");
-    input_roll::dump();
-    putln("-=-=-=-=-=-=-=-=-=- Parameter Roll");
-    param_roll::dump();
-    putln("-=-=-=-=-=-=-=-=-=- Storage Roll");
-    storage_roll::dump();
-    putln("-=-=-=-=-=-=-=-=-=-");
   }
 }
 
