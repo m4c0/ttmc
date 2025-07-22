@@ -30,7 +30,7 @@ using namespace ttmc;
   auto a = s->param.next();
   auto b = s->param.next();
 
-  auto ab = op(jute::to_i32(a), jute::to_i32(b));
+  auto ab = op(jute::to_i32(a.trim()), jute::to_i32(b.trim()));
   if (ab == 0) return "0"_hs;
 
   char buf[128] {};
@@ -72,8 +72,8 @@ static void ds(state * s) {
   auto s3 = s->param.next();
   auto s4 = s->param.next();
 
-  auto n1 = jute::to_i32(s1);
-  auto n2 = jute::to_i32(s2);
+  auto n1 = jute::to_i32(s1.trim());
+  auto n2 = jute::to_i32(s2.trim());
   return n1 == n2 ? s3 : s4;
 }
 
