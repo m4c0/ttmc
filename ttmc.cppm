@@ -193,7 +193,7 @@ static void parse_dpound(state * s) {
     default:
       s->param.push('#');
       s->param.push('#');
-      s->param.push(c);
+      s->input->push(jute::view { &c, 1 });
       break;
   }
 }
@@ -233,7 +233,7 @@ static void parse_pound(state * s) {
     }
     default:
       s->param.push('#');
-      s->param.push(c);
+      s->input->push(jute::view { &c, 1 });
       break;
   }
 };
